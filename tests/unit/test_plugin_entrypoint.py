@@ -5,10 +5,13 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
+from untaped import get_config_section
 from untaped.main import build_app
 
 from untaped_jira.plugin import plugin as jira_plugin
+from untaped_jira.settings import JiraSettings
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,3 +54,19 @@ def test_config_list_redacts_jira_token(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "jira_pat" not in result.stdout
     assert "jira.token\t***" in result.stdout
+
+
+def test_jira_token_can_be_loaded_from_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = tmp_path / "config.yml"
+    cfg.write_text("profiles:\n  default:\n    jira:\n      base_url: https://jira.example.com\n")
+    monkeypatch.setenv("UNTAPED_CONFIG", str(cfg))
+    monkeypatch.setenv("UNTAPED_JIRA__TOKEN", "from-env")
+    build_app(plugins=[jira_plugin])
+
+    settings = get_config_section("jira", JiraSettings)
+
+    assert settings.token is not None
+    assert settings.token.get_secret_value() == "from-env"

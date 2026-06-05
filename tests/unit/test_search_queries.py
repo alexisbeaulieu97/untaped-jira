@@ -34,3 +34,12 @@ def test_raw_jql_combines_with_shortcut_filters_before_order_by() -> None:
     ).to_jql()
 
     assert query == '(labels = urgent) AND project = ABC AND status = "Open" ORDER BY priority DESC'
+
+
+def test_raw_jql_order_by_inside_quoted_text_is_not_split() -> None:
+    query = JiraIssueSearchFilters(
+        raw_jql='text ~ "foo order by bar"',
+        project="ABC",
+    ).to_jql()
+
+    assert query == '(text ~ "foo order by bar") AND project = ABC ORDER BY updated DESC'

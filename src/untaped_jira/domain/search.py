@@ -48,10 +48,30 @@ class JiraIssueSearchFilters(BaseModel):
 def _split_order_by(jql: str | None) -> tuple[str | None, str | None]:
     if not jql:
         return None, None
-    match = re.search(r"\s+order\s+by\s+", jql, flags=re.IGNORECASE)
-    if match is None:
+    order_start = _find_order_by(jql)
+    if order_start is None:
         return jql, None
-    return jql[: match.start()].strip(), jql[match.start() :].strip()
+    return jql[:order_start].strip(), jql[order_start:].strip()
+
+
+def _find_order_by(jql: str) -> int | None:
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(jql):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in {'"', "'"}:
+            quote = char
+            continue
+        if char.isspace() and re.match(r"\s+order\s+by\s+", jql[index:], flags=re.IGNORECASE):
+            return index
+    return None
 
 
 def _quote_project(value: str) -> str:

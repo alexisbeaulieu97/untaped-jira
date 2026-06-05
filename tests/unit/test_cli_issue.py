@@ -174,6 +174,52 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
     assert json.loads(route.calls[0].request.content) == {"body": "hello from stdin"}
 
 
+def test_issue_comment_preserves_formatted_stdin_body(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
+            return_value=httpx.Response(201, json={"id": "700"})
+        )
+        result = CliRunner().invoke(
+            app,
+            ["issue", "comment", "ABC-1", "--format", "raw", "--columns", "id"],
+            input="line1\n\n    code\nline3\n",
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "700"
+    assert json.loads(route.calls[0].request.content) == {"body": "line1\n\n    code\nline3"}
+
+
+def test_issue_comment_preserves_formatted_body_file(
+    jira_config: Path,
+    tmp_path: Path,
+) -> None:
+    body_file = tmp_path / "comment.md"
+    body_file.write_text("line1\n\n    code\nline3\n")
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
+            return_value=httpx.Response(201, json={"id": "700"})
+        )
+        result = CliRunner().invoke(
+            app,
+            [
+                "issue",
+                "comment",
+                "ABC-1",
+                "--body-file",
+                str(body_file),
+                "--format",
+                "raw",
+                "--columns",
+                "id",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "700"
+    assert json.loads(route.calls[0].request.content) == {"body": "line1\n\n    code\nline3"}
+
+
 def test_issue_transition_by_name_rejects_ambiguous_match(jira_config: Path) -> None:
     with respx.mock(base_url="https://jira.example.com") as mock:
         mock.get("/rest/api/2/issue/ABC-1/transitions").mock(

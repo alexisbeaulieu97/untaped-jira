@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -13,7 +14,6 @@ from untaped import (
     ProfileOverrideOption,
     format_output,
     parse_kv_pairs,
-    read_stdin,
     report_errors,
 )
 
@@ -319,13 +319,22 @@ def _resolve_body(*, body: str | None, body_file: Path | None) -> str:
         return body
     if body_file is not None:
         try:
-            return body_file.read_text().strip()
+            return _trim_terminal_newline(body_file.read_text())
         except OSError as exc:
             raise ConfigError(f"could not read {body_file}: {exc}") from exc
-    stdin_lines = read_stdin()
-    if stdin_lines:
-        return "\n".join(stdin_lines)
+    if not sys.stdin.isatty():
+        raw_body = sys.stdin.read()
+        if raw_body.strip():
+            return _trim_terminal_newline(raw_body)
     raise ConfigError("comment body is required (pass --body, --body-file, or stdin)")
+
+
+def _trim_terminal_newline(value: str) -> str:
+    if value.endswith("\r\n"):
+        return value[:-2]
+    if value.endswith(("\n", "\r")):
+        return value[:-1]
+    return value
 
 
 app.add_typer(issue_app, name="issue")
