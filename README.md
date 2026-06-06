@@ -8,6 +8,9 @@ project, board, and sprint lookup helpers.
 
 Generic plugin install and sync workflow is documented in the core
 [`untaped` plugin docs](https://github.com/alexisbeaulieu97/untaped/blob/main/docs/plugins.md).
+This plugin also contributes the `untaped-jira` agent skill; install it for
+Codex or Claude through the core
+[`untaped` agent skill docs](https://github.com/alexisbeaulieu97/untaped/blob/main/docs/skills.md).
 
 ## Configuration
 

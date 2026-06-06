@@ -23,6 +23,48 @@ def test_me_reads_authenticated_jira_user(jira_config: Path) -> None:
     assert result.stdout.strip() == "alexis"
 
 
+def test_me_honors_global_ui_collection_view_for_table_output(jira_config: Path) -> None:
+    jira_config.write_text(
+        "ui:\n"
+        "  collection_view: list\n"
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/myself").mock(
+            return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
+        )
+        result = CliRunner().invoke(app, ["me"])
+
+    assert result.exit_code == 0, result.output
+    assert "name: alexis" in result.stdout
+    assert "displayName: Alexis" in result.stdout
+    assert "╭" not in result.stdout
+
+
+def test_me_raw_ignores_unknown_global_ui_theme(jira_config: Path) -> None:
+    jira_config.write_text(
+        "ui:\n"
+        "  theme: missing\n"
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/myself").mock(
+            return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
+        )
+        result = CliRunner().invoke(app, ["me", "--format", "raw", "--columns", "name"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "alexis"
+
+
 def test_issue_get_renders_key_first(jira_config: Path) -> None:
     payload = {
         "key": "ABC-1",
@@ -172,6 +214,27 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "700"
     assert json.loads(route.calls[0].request.content) == {"body": "hello from stdin"}
+
+
+def test_issue_comment_does_not_post_when_table_theme_is_unknown(jira_config: Path) -> None:
+    jira_config.write_text(
+        "ui:\n"
+        "  theme: missing\n"
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+    )
+    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+        route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
+            return_value=httpx.Response(201, json={"id": "700"})
+        )
+        result = CliRunner().invoke(app, ["issue", "comment", "ABC-1", "--body", "hello"])
+
+    assert result.exit_code != 0
+    assert "unknown UI theme" in result.output
+    assert len(route.calls) == 0
 
 
 def test_issue_comment_preserves_formatted_stdin_body(jira_config: Path) -> None:

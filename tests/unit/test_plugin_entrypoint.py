@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 from untaped import get_config_section
 from untaped.main import build_app
+from untaped.plugins import PluginRegistry
 
 from untaped_jira.plugin import plugin as jira_plugin
 from untaped_jira.settings import JiraSettings
@@ -31,6 +32,25 @@ def test_root_app_can_register_jira_plugin() -> None:
 
     assert result.exit_code == 0, result.output
     assert "Manage Jira Data Center tickets" in result.output
+
+
+def test_jira_plugin_registers_agent_skill() -> None:
+    registry = PluginRegistry()
+
+    jira_plugin.register(registry)
+
+    spec = registry.skills["untaped-jira"]
+    assert spec.description == "Use the untaped Jira plugin."
+    assert spec.source.joinpath("SKILL.md").is_file()
+
+
+def test_root_app_skills_list_includes_registered_jira_skill() -> None:
+    app = build_app(plugins=[jira_plugin])
+
+    result = CliRunner().invoke(app, ["skills", "list", "--format", "raw"])
+
+    assert result.exit_code == 0, result.output
+    assert "untaped-jira" in result.stdout.splitlines()
 
 
 def test_config_list_includes_registered_jira_settings() -> None:
