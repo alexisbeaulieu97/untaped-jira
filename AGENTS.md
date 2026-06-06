@@ -41,8 +41,10 @@ src/untaped_jira/
 └── infrastructure/
 ```
 
-The plugin registers `JiraSettings` as the `jira` profile settings section
-and mounts the Typer app as the root `jira` command.
+The plugin registers `JiraSettings` as the `jira` profile settings section,
+mounts the Typer app as the root `jira` command, and registers the packaged
+`untaped-jira` agent skill. Keep that static skill asset current with major
+Jira workflow changes.
 
 ## Jira Target
 
