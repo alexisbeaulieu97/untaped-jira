@@ -6,6 +6,17 @@ It provides a curated `untaped jira` command group for daily ticket workflow:
 issue lookup/search/create/edit/comment/transition plus lightweight
 project, board, and sprint lookup helpers.
 
+## Install
+
+Install both `untaped` and this plugin from git:
+
+```bash
+uv tool install "git+https://github.com/alexisbeaulieu97/untaped.git@v0.1.0" \
+  --with "untaped-jira @ git+https://github.com/alexisbeaulieu97/untaped-jira.git@v0.1.0" \
+  --no-sources \
+  --force
+```
+
 Generic plugin install and sync workflow is documented in the core
 [`untaped` plugin docs](https://github.com/alexisbeaulieu97/untaped/blob/main/docs/plugins.md).
 This plugin also contributes the `untaped-jira` agent skill; install it for
