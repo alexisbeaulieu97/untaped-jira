@@ -14,7 +14,9 @@ primitives, and shared errors.
 ## Hard Rules
 
 1. Keep `AGENTS.md` up to date.
-2. Expose the plugin through the `untaped.plugins` entry point.
+2. Expose the plugin through the `untaped.plugins` entry point. The plugin
+   object must expose `id = "jira"`, literal `untaped_api_version = 1`,
+   and `register(registry)`.
 3. Use the 4-layer plugin layout: `cli -> application -> domain`, with
    `infrastructure -> domain`.
 4. Declare use-case ports in `application/ports.py`.

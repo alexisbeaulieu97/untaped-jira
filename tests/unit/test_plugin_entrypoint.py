@@ -25,6 +25,10 @@ def test_jira_plugin_entry_point_is_declared() -> None:
     )
 
 
+def test_jira_plugin_declares_untaped_api_version() -> None:
+    assert jira_plugin.untaped_api_version == 1
+
+
 def test_root_app_can_register_jira_plugin() -> None:
     app = build_app(plugins=[jira_plugin])
 
