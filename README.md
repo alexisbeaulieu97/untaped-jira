@@ -11,7 +11,7 @@ project, board, and sprint lookup helpers.
 Install both `untaped` and this plugin from git:
 
 ```bash
-uv tool install "git+https://github.com/alexisbeaulieu97/untaped.git@v0.1.3" \
+uv tool install "git+https://github.com/alexisbeaulieu97/untaped.git@v0.1.4" \
   --with "untaped-jira @ git+https://github.com/alexisbeaulieu97/untaped-jira.git@v0.1.0" \
   --no-sources \
   --force
