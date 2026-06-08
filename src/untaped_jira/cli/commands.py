@@ -132,7 +132,7 @@ def issue_assigned_command(
         ui = _ui_for_format(fmt)
         settings = current_jira_settings(profile)
         filters = JiraIssueSearchFilters(
-            raw_jql=jql or settings.assigned_jql,
+            raw_jql=_resolve_assigned_jql(jql=jql, configured=settings.assigned_jql),
             project=project,
             status=status,
             text=text,
@@ -141,6 +141,15 @@ def issue_assigned_command(
         with open_client(profile) as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
         typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+
+
+def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
+    if jql is None:
+        return configured
+    stripped = jql.strip()
+    if not stripped:
+        raise ConfigError("--jql must not be blank")
+    return stripped
 
 
 @issue_app.command("create")

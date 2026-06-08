@@ -229,6 +229,36 @@ def test_issue_assigned_jql_option_overrides_configured_assigned_jql(
     )
 
 
+def test_issue_assigned_rejects_blank_jql_override(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+        route = mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={"startAt": 0, "maxResults": 50, "total": 0, "issues": []},
+            )
+        )
+        result = CliRunner().invoke(app, ["issue", "assigned", "--jql", ""])
+
+    assert result.exit_code != 0
+    assert "--jql must not be blank" in result.output
+    assert len(route.calls) == 0
+
+
+def test_issue_assigned_rejects_whitespace_jql_override(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+        route = mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={"startAt": 0, "maxResults": 50, "total": 0, "issues": []},
+            )
+        )
+        result = CliRunner().invoke(app, ["issue", "assigned", "--jql", "   "])
+
+    assert result.exit_code != 0
+    assert "--jql must not be blank" in result.output
+    assert len(route.calls) == 0
+
+
 def test_issue_create_merges_template_and_flags(jira_config: Path, tmp_path: Path) -> None:
     template = tmp_path / "bug.yml"
     template.write_text("fields:\n  customfield_10000: old\n")
