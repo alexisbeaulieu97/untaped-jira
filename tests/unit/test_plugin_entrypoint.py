@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 from typer.testing import CliRunner
 from untaped import get_config_section
 from untaped.main import build_app
@@ -66,6 +67,7 @@ def test_config_list_includes_registered_jira_settings() -> None:
     assert "jira.base_url" in result.stdout
     assert "jira.token" in result.stdout
     assert "jira.default_board_id" in result.stdout
+    assert "jira.assigned_jql" in result.stdout
 
 
 def test_config_list_redacts_jira_token(jira_config: Path) -> None:
@@ -94,3 +96,8 @@ def test_jira_token_can_be_loaded_from_env(
 
     assert settings.token is not None
     assert settings.token.get_secret_value() == "from-env"
+
+
+def test_jira_settings_reject_blank_assigned_jql() -> None:
+    with pytest.raises(ValidationError, match="assigned_jql must not be blank"):
+        JiraSettings(assigned_jql="   ")

@@ -112,6 +112,37 @@ def issue_search_command(
         typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
 
 
+@issue_app.command("assigned")
+def issue_assigned_command(
+    jql: str | None = typer.Option(None, "--jql", help="Raw JQL base query."),
+    project: str | None = typer.Option(None, "--project"),
+    status: str | None = typer.Option(None, "--status"),
+    text: str | None = typer.Option(None, "--text"),
+    sprint: str | None = typer.Option(None, "--sprint"),
+    limit: LimitOption = 50,
+    fmt: FormatOption = "table",
+    columns: ColumnsOption = None,
+    profile: ProfileOverrideOption = None,
+) -> None:
+    """List issues assigned to the authenticated Jira user."""
+
+    from untaped_jira.application import SearchIssues  # noqa: PLC0415
+
+    with report_errors():
+        ui = _ui_for_format(fmt)
+        settings = current_jira_settings(profile)
+        filters = JiraIssueSearchFilters(
+            raw_jql=jql or settings.assigned_jql,
+            project=project,
+            status=status,
+            text=text,
+            sprint=sprint,
+        )
+        with open_client(profile) as client:
+            rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
+        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+
+
 @issue_app.command("create")
 def issue_create_command(
     template: Path | None = typer.Option(None, "--template", exists=True, dir_okay=False),

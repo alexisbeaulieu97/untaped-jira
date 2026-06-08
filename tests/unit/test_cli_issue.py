@@ -121,6 +121,114 @@ def test_issue_search_sends_jql_and_renders_issue_keys(jira_config: Path) -> Non
     assert request_json["jql"] == ('project = ABC AND status = "Open" ORDER BY updated DESC')
 
 
+def test_issue_assigned_uses_default_assigned_jql(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "startAt": 0,
+                    "maxResults": 50,
+                    "total": 1,
+                    "issues": [{"key": "ABC-1", "fields": {"summary": "Fix deploy"}}],
+                },
+            )
+        )
+        result = CliRunner().invoke(
+            app,
+            ["issue", "assigned", "--format", "raw", "--columns", "key"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "ABC-1"
+    request_json = json.loads(route.calls[0].request.content)
+    assert request_json["jql"] == (
+        "(assignee = currentUser() AND resolution = Unresolved) ORDER BY updated DESC"
+    )
+
+
+def test_issue_assigned_uses_configured_assigned_jql(jira_config: Path) -> None:
+    jira_config.write_text(
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+        "      assigned_jql: assignee = currentUser() AND project = OPS\n"
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "startAt": 0,
+                    "maxResults": 50,
+                    "total": 1,
+                    "issues": [{"key": "OPS-7", "fields": {"summary": "Patch release"}}],
+                },
+            )
+        )
+        result = CliRunner().invoke(
+            app,
+            ["issue", "assigned", "--format", "raw", "--columns", "key"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "OPS-7"
+    request_json = json.loads(route.calls[0].request.content)
+    assert request_json["jql"] == (
+        "(assignee = currentUser() AND project = OPS) ORDER BY updated DESC"
+    )
+
+
+def test_issue_assigned_jql_option_overrides_configured_assigned_jql(
+    jira_config: Path,
+) -> None:
+    jira_config.write_text(
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+        "      assigned_jql: assignee = currentUser() AND project = OPS\n"
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "startAt": 0,
+                    "maxResults": 50,
+                    "total": 1,
+                    "issues": [{"key": "SEC-3", "fields": {"summary": "Review ACL"}}],
+                },
+            )
+        )
+        result = CliRunner().invoke(
+            app,
+            [
+                "issue",
+                "assigned",
+                "--jql",
+                "assignee = currentUser() AND project = SEC",
+                "--status",
+                "In Progress",
+                "--format",
+                "raw",
+                "--columns",
+                "key",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "SEC-3"
+    request_json = json.loads(route.calls[0].request.content)
+    assert request_json["jql"] == (
+        '(assignee = currentUser() AND project = SEC) AND status = "In Progress" '
+        "ORDER BY updated DESC"
+    )
+
+
 def test_issue_create_merges_template_and_flags(jira_config: Path, tmp_path: Path) -> None:
     template = tmp_path / "bug.yml"
     template.write_text("fields:\n  customfield_10000: old\n")

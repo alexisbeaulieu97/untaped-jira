@@ -33,6 +33,7 @@ profiles:
       token: <personal-access-token>
       api_prefix: /rest/api/2
       agile_prefix: /rest/agile/1.0
+      assigned_jql: assignee = currentUser() AND resolution = Unresolved
       default_project: ABC
       default_board_id: 42
       page_size: 50
@@ -42,6 +43,24 @@ profiles:
 
 ```bash
 export UNTAPED_JIRA__TOKEN=<personal-access-token>
+```
+
+## Daily Issue Commands
+
+List tickets assigned to the authenticated Jira user:
+
+```bash
+untaped jira issue assigned
+```
+
+`issue assigned` uses `jira.assigned_jql` by default. Pass `--jql` to override
+that base query for one run, and combine it with shortcut filters such as
+`--project`, `--status`, `--text`, or `--sprint`.
+
+Fetch a single ticket by key or id:
+
+```bash
+untaped jira issue get ABC-123
 ```
 
 ## Payload Templates
