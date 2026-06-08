@@ -72,7 +72,12 @@ profiles:
     jira:
       base_url: https://jira.example.com
       token: <personal-access-token>
+      assigned_jql: assignee = currentUser() AND resolution = Unresolved
 ```
 
 `jira.token` is redacted by `untaped config list` and can be supplied by
 `UNTAPED_JIRA__TOKEN`.
+
+`untaped jira issue assigned` lists the authenticated user's assigned issues
+using `jira.assigned_jql` unless `--jql` is passed. `untaped jira issue get KEY`
+is the canonical concise ticket lookup command.

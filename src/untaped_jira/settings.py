@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+DEFAULT_ASSIGNED_JQL = "assignee = currentUser() AND resolution = Unresolved"
+
 
 class JiraSettings(BaseModel):
     """Connection and behavior settings for one Jira Data Center target."""
@@ -14,6 +16,7 @@ class JiraSettings(BaseModel):
     token: SecretStr | None = None
     api_prefix: str = "/rest/api/2"
     agile_prefix: str = "/rest/agile/1.0"
+    assigned_jql: str = DEFAULT_ASSIGNED_JQL
     default_project: str | None = None
     default_board_id: int | None = None
     page_size: int = Field(default=50, gt=0)
@@ -24,3 +27,11 @@ class JiraSettings(BaseModel):
         if not value.startswith("/"):
             raise ValueError("API prefixes must start with '/'")
         return value.rstrip("/") or "/"
+
+    @field_validator("assigned_jql")
+    @classmethod
+    def _assigned_jql_not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("assigned_jql must not be blank")
+        return stripped

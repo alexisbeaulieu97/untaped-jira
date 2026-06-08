@@ -11,13 +11,15 @@ Use this skill when the user wants an agent to operate `untaped jira` for Jira D
 
 - The plugin command group is `untaped jira`.
 - V1 targets Jira Data Center and self-hosted Jira, not Jira Cloud REST v3.
-- Settings live under `profiles.<name>.jira`: `base_url`, `token`, and optional defaults such as `default_board_id`.
+- Settings live under `profiles.<name>.jira`: `base_url`, `token`, `assigned_jql`, and optional defaults such as `default_board_id`.
 - Use `untaped config set jira.token --prompt` or `--stdin` for personal access tokens.
 
 ## Command Patterns
 
 - Use `untaped jira --help` and subcommand `--help` output to confirm the available V1 surface before acting.
 - Jira platform calls use `/rest/api/2`; Jira Software board and sprint calls use `/rest/agile/1.0`.
+- Use `untaped jira issue assigned` to list tickets assigned to the authenticated Jira user. It uses `jira.assigned_jql` unless `--jql` is passed.
+- Use `untaped jira issue get KEY` to fetch one concise ticket row by key or id.
 - Prefer JSON output for issue, board, sprint, transition, project, and search workflows.
 - Use configured defaults only after checking effective config with `untaped config list --format raw --columns key --columns value`.
 
