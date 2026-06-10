@@ -6,10 +6,8 @@ from collections.abc import Iterator
 from types import TracebackType
 from typing import Any
 
-from untaped import ConfigError, HttpClient, HttpSettings
-from untaped.http import resolve_verify
+from untaped.api import HttpSettings, connected_client, paginate_offset
 
-from untaped_jira.infrastructure.pagination import paginate_start_at
 from untaped_jira.settings import JiraSettings
 
 
@@ -17,25 +15,14 @@ class JiraClient:
     """Talks to Jira Data Center using a configured personal access token."""
 
     def __init__(self, config: JiraSettings, *, http: HttpSettings | None = None) -> None:
-        if not config.base_url:
-            raise ConfigError(
-                "jira.base_url is not configured (set it via "
-                "`untaped config set jira.base_url <url>` or UNTAPED_JIRA__BASE_URL)"
-            )
-        token = config.token.get_secret_value().strip() if config.token is not None else ""
-        if not token:
-            raise ConfigError(
-                "jira.token is not configured (set it via "
-                "`untaped config set jira.token <token>` or UNTAPED_JIRA__TOKEN)"
-            )
-        self._http = HttpClient(
-            base_url=config.base_url.rstrip("/"),
+        self._http = connected_client(
+            config,
+            section="jira",
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
             },
-            verify=resolve_verify(http or HttpSettings()),
+            http=http,
         )
         self._api_prefix = config.api_prefix
         self._agile_prefix = config.agile_prefix
@@ -57,7 +44,7 @@ class JiraClient:
         )
 
     def search_issues(self, jql: str, *, limit: int | None = None) -> Iterator[dict[str, Any]]:
-        return paginate_start_at(
+        return paginate_offset(
             self._http,
             "POST",
             self._api("search"),
@@ -117,7 +104,7 @@ class JiraClient:
             params["name"] = name
         if board_type:
             params["type"] = board_type
-        return paginate_start_at(
+        return paginate_offset(
             self._http,
             "GET",
             self._agile("board"),
@@ -135,7 +122,7 @@ class JiraClient:
         limit: int | None = None,
     ) -> Iterator[dict[str, Any]]:
         params = {"state": state} if state else None
-        return paginate_start_at(
+        return paginate_offset(
             self._http,
             "GET",
             self._agile(f"board/{board_id}/sprint"),

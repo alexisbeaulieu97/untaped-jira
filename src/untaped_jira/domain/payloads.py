@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from untaped import ConfigError
+from untaped.api import ConfigError
 
 
 def read_payload_file(path: Path) -> dict[str, Any]:

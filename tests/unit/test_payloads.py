@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from untaped import ConfigError
+from untaped.api import ConfigError
 
 from untaped_jira.domain import build_issue_payload, parse_json_field_assignments, read_payload_file
 

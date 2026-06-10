@@ -1,31 +1,39 @@
-"""Untaped plugin registration for the Jira domain."""
+"""Untaped plugin manifest for the Jira domain."""
 
 from __future__ import annotations
 
 from importlib.resources import files
 from pathlib import Path
 
-from untaped.plugins import PluginRegistry, SkillSpec
+from untaped.api import CliSpec, PluginManifest, SkillSpec
 
-from untaped_jira import app
 from untaped_jira.settings import JiraSettings
 
 
 class JiraPlugin:
-    """Register Jira settings and commands with the untaped runtime."""
+    """Declare the Jira plugin's contributions to the untaped runtime."""
 
     id = "jira"
-    untaped_api_version = 2
+    untaped_api_version = 3
 
-    def register(self, registry: PluginRegistry) -> None:
-        registry.add_profile_settings("jira", JiraSettings)
-        registry.add_cli("jira", app)
-        registry.add_skill(
-            SkillSpec(
-                name="untaped-jira",
-                source=Path(str(files("untaped_jira").joinpath("skills", "untaped-jira"))),
-                description="Use the untaped Jira plugin.",
-            )
+    def manifest(self) -> PluginManifest:
+        """Describe the Jira CLI, settings section, and agent skill as data."""
+        return PluginManifest(
+            clis=(
+                CliSpec(
+                    name="jira",
+                    import_path="untaped_jira.cli:app",
+                    help="Manage Jira Data Center tickets from untaped.",
+                ),
+            ),
+            profile_settings={"jira": JiraSettings},
+            skills=(
+                SkillSpec(
+                    name="untaped-jira",
+                    source=Path(str(files("untaped_jira").joinpath("skills", "untaped-jira"))),
+                    description="Use the untaped Jira plugin.",
+                ),
+            ),
         )
 
 

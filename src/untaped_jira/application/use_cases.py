@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from untaped import ConfigError
+from untaped.api import ConfigError
 
 from untaped_jira.application.ports import (
     JiraIssueReader,

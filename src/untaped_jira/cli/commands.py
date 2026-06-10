@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from cyclopts import Parameter, validators
-from untaped import (
+from untaped.api import (
     ColumnsOption,
     ConfigError,
     FormatOption,
