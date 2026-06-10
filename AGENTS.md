@@ -21,8 +21,11 @@ primitives, and shared errors.
    `infrastructure -> domain`.
 4. Declare use-case ports in `application/ports.py`.
 5. Use absolute imports only.
-6. Cyclopts command signatures use `Annotated[..., Parameter(...)]`,
-   explicit public names, and manual bare-command help only when required.
+6. Cyclopts command signatures use `Annotated[..., Parameter(...)]` and
+   explicit public names. Required inputs are required positional-only
+   params (`Parameter(help=...)` before `/`); a missing value renders
+   `error: ... requires an argument` (exit 2) automatically — never an
+   optional default plus a manual help dance.
 7. stdout is data only; diagnostics and status go to stderr.
 8. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
 9. Every Jira HTTP client must use `untaped.HttpClient` and

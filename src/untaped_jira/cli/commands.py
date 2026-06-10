@@ -4,22 +4,20 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Annotated, Literal, NoReturn
+from typing import Annotated, Literal
 
 from cyclopts import Parameter, validators
 from untaped import (
     ColumnsOption,
     ConfigError,
     FormatOption,
-    OutputFormat,
     ProfileOverrideOption,
-    UiContext,
     create_app,
     echo,
     existing_file,
     parse_kv_pairs,
+    render_rows,
     report_errors,
-    ui_context,
 )
 
 from untaped_jira.cli._client import current_jira_settings, open_client
@@ -68,15 +66,15 @@ def me_command(
     from untaped_jira.application import WhoAmI  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = WhoAmI(client)().model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="get")
 def issue_get_command(
-    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -86,13 +84,10 @@ def issue_get_command(
 
     from untaped_jira.application import GetIssue  # noqa: PLC0415
 
-    if key is None:
-        _show_issue_help("get")
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = GetIssue(client)(key).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="search")
@@ -114,7 +109,6 @@ def issue_search_command(
     from untaped_jira.application import SearchIssues  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         filters = JiraIssueSearchFilters(
             raw_jql=jql,
             project=project,
@@ -125,7 +119,7 @@ def issue_search_command(
         )
         with open_client(profile) as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="assigned")
@@ -146,7 +140,6 @@ def issue_assigned_command(
     from untaped_jira.application import SearchIssues  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         settings = current_jira_settings(profile)
         filters = JiraIssueSearchFilters(
             raw_jql=_resolve_assigned_jql(jql=jql, configured=settings.assigned_jql),
@@ -157,7 +150,7 @@ def issue_assigned_command(
         )
         with open_client(profile) as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
@@ -191,7 +184,6 @@ def issue_create_command(
     from untaped_jira.application import CreateIssue  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         base = read_payload_file(template) if template is not None else {}
         payload = build_issue_payload(
             base=base,
@@ -204,12 +196,13 @@ def issue_create_command(
         )
         with open_client(profile) as client:
             row = CreateIssue(client)(payload).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="edit")
 def issue_edit_command(
-    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
     *,
     body_file: Annotated[
         Path | None,
@@ -227,10 +220,7 @@ def issue_edit_command(
 
     from untaped_jira.application import EditIssue  # noqa: PLC0415
 
-    if key is None:
-        _show_issue_help("edit")
     with report_errors():
-        ui = _ui_for_format(fmt)
         base = read_payload_file(body_file) if body_file is not None else {}
         payload = build_issue_payload(
             base=base,
@@ -241,12 +231,13 @@ def issue_edit_command(
         )
         with open_client(profile) as client:
             row = EditIssue(client)(key, payload).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="comment")
 def issue_comment_command(
-    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
     *,
     body: Annotated[str | None, Parameter(name="--body", help="Comment body.")] = None,
     body_file: Annotated[
@@ -261,19 +252,17 @@ def issue_comment_command(
 
     from untaped_jira.application import AddComment  # noqa: PLC0415
 
-    if key is None:
-        _show_issue_help("comment")
     with report_errors():
-        ui = _ui_for_format(fmt)
         resolved_body = _resolve_body(body=body, body_file=body_file)
         with open_client(profile) as client:
             row = AddComment(client)(key, resolved_body).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="transitions")
 def issue_transitions_command(
-    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -283,18 +272,16 @@ def issue_transitions_command(
 
     from untaped_jira.application import ListTransitions  # noqa: PLC0415
 
-    if key is None:
-        _show_issue_help("transitions")
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [transition.model_dump() for transition in ListTransitions(client)(key)]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 @issue_app.command(name="transition")
 def issue_transition_command(
-    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
     *,
     to: Annotated[str | None, Parameter(name="--to", help="Transition name.")] = None,
     transition_id: Annotated[str | None, Parameter(name="--id", help="Transition id.")] = None,
@@ -306,17 +293,14 @@ def issue_transition_command(
 
     from untaped_jira.application import TransitionIssue  # noqa: PLC0415
 
-    if key is None:
-        _show_issue_help("transition")
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = TransitionIssue(client)(
                 key,
                 transition_id=transition_id,
                 transition_name=to,
             ).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @project_app.command(name="list")
@@ -331,15 +315,15 @@ def project_list_command(
     from untaped_jira.application import ListProjects  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [project.model_dump() for project in ListProjects(client)()]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 @project_app.command(name="get")
 def project_get_command(
-    key: Annotated[str | None, Parameter(name="", help="Project key or id.")] = None,
+    key: Annotated[str, Parameter(help="Project key or id.")],
+    /,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -349,13 +333,10 @@ def project_get_command(
 
     from untaped_jira.application import GetProject  # noqa: PLC0415
 
-    if key is None:
-        _show_project_help("get")
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = GetProject(client)(key).model_dump()
-        echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
 @board_app.command(name="list")
@@ -377,7 +358,6 @@ def board_list_command(
     from untaped_jira.application import ListBoards  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [
                 board.model_dump()
@@ -388,7 +368,7 @@ def board_list_command(
                     limit=limit,
                 )
             ]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 @sprint_app.command(name="list")
@@ -409,7 +389,6 @@ def sprint_list_command(
     from untaped_jira.application import ListSprints  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         settings = current_jira_settings(profile)
         with open_client(profile) as client:
             rows = [
@@ -420,23 +399,7 @@ def sprint_list_command(
                     limit=limit,
                 )
             ]
-        echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
-
-
-def _render_rows(
-    rows: list[dict[str, object]],
-    *,
-    ui: UiContext,
-    fmt: OutputFormat,
-    columns: list[str] | None,
-) -> str:
-    return ui.collection(rows, fmt=fmt, columns=columns)
-
-
-def _ui_for_format(fmt: OutputFormat) -> UiContext:
-    if fmt == "table":
-        return ui_context()
-    return UiContext()
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 def _resolve_body(*, body: str | None, body_file: Path | None) -> str:
@@ -462,16 +425,6 @@ def _trim_terminal_newline(value: str) -> str:
     if value.endswith(("\n", "\r")):
         return value[:-1]
     return value
-
-
-def _show_issue_help(command: str) -> NoReturn:
-    issue_app.help_print([command])
-    raise SystemExit()
-
-
-def _show_project_help(command: str) -> NoReturn:
-    project_app.help_print([command])
-    raise SystemExit()
 
 
 app.command(issue_app, name="issue")

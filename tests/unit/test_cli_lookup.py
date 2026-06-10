@@ -37,11 +37,12 @@ def test_project_get_outputs_one_project(jira_config: Path) -> None:
     assert result.stdout.strip() == "ABC"
 
 
-def test_project_get_shows_help_without_key() -> None:
+def test_project_get_missing_key_is_usage_error() -> None:
     result = CliInvoker().invoke(app, ["project", "get"])
 
-    assert result.exit_code == 0, result.output
-    assert "Usage:" in result.output
+    assert result.exit_code == 2, result.output
+    assert result.stdout == ""
+    assert "requires an argument" in result.stderr
 
 
 def test_board_list_filters_by_project(jira_config: Path) -> None:

@@ -86,7 +86,7 @@ def test_issue_get_renders_key_first(jira_config: Path) -> None:
     assert result.stdout.strip() == "ABC-1"
 
 
-def test_issue_required_argument_commands_show_help_without_key() -> None:
+def test_issue_commands_missing_key_is_usage_error() -> None:
     runner = CliInvoker()
 
     for args in (
@@ -98,8 +98,9 @@ def test_issue_required_argument_commands_show_help_without_key() -> None:
     ):
         result = runner.invoke(app, args)
 
-        assert result.exit_code == 0, result.output
-        assert "Usage:" in result.output
+        assert result.exit_code == 2, result.output
+        assert result.stdout == ""
+        assert "requires an argument" in result.stderr
 
 
 def test_issue_search_sends_jql_and_renders_issue_keys(jira_config: Path) -> None:
@@ -370,7 +371,7 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
     assert json.loads(route.calls[0].request.content) == {"body": "hello from stdin"}
 
 
-def test_issue_comment_does_not_post_when_table_theme_is_unknown(jira_config: Path) -> None:
+def test_issue_comment_table_render_fails_when_theme_is_unknown(jira_config: Path) -> None:
     jira_config.write_text(
         "ui:\n"
         "  theme: missing\n"
@@ -380,7 +381,7 @@ def test_issue_comment_does_not_post_when_table_theme_is_unknown(jira_config: Pa
         "      base_url: https://jira.example.com\n"
         "      token: jira_pat\n"
     )
-    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+    with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
             return_value=httpx.Response(201, json={"id": "700"})
         )
@@ -388,7 +389,7 @@ def test_issue_comment_does_not_post_when_table_theme_is_unknown(jira_config: Pa
 
     assert result.exit_code != 0
     assert "unknown UI theme" in result.output
-    assert len(route.calls) == 0
+    assert len(route.calls) == 1
 
 
 def test_issue_comment_preserves_formatted_stdin_body(jira_config: Path) -> None:
