@@ -37,6 +37,13 @@ def test_project_get_outputs_one_project(jira_config: Path) -> None:
     assert result.stdout.strip() == "ABC"
 
 
+def test_project_get_shows_help_without_key() -> None:
+    result = CliInvoker().invoke(app, ["project", "get"])
+
+    assert result.exit_code == 0, result.output
+    assert "Usage:" in result.output
+
+
 def test_board_list_filters_by_project(jira_config: Path) -> None:
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.get("/rest/agile/1.0/board").mock(

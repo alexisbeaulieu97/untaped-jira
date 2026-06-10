@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NoReturn
 
 from cyclopts import Parameter, validators
 from untaped import (
@@ -76,7 +76,7 @@ def me_command(
 
 @issue_app.command(name="get")
 def issue_get_command(
-    key: Annotated[str, Parameter(help="Issue key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -86,6 +86,8 @@ def issue_get_command(
 
     from untaped_jira.application import GetIssue  # noqa: PLC0415
 
+    if key is None:
+        _show_issue_help("get")
     with report_errors():
         ui = _ui_for_format(fmt)
         with open_client(profile) as client:
@@ -207,7 +209,7 @@ def issue_create_command(
 
 @issue_app.command(name="edit")
 def issue_edit_command(
-    key: Annotated[str, Parameter(help="Issue key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
     *,
     body_file: Annotated[
         Path | None,
@@ -225,6 +227,8 @@ def issue_edit_command(
 
     from untaped_jira.application import EditIssue  # noqa: PLC0415
 
+    if key is None:
+        _show_issue_help("edit")
     with report_errors():
         ui = _ui_for_format(fmt)
         base = read_payload_file(body_file) if body_file is not None else {}
@@ -242,7 +246,7 @@ def issue_edit_command(
 
 @issue_app.command(name="comment")
 def issue_comment_command(
-    key: Annotated[str, Parameter(help="Issue key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
     *,
     body: Annotated[str | None, Parameter(name="--body", help="Comment body.")] = None,
     body_file: Annotated[
@@ -257,6 +261,8 @@ def issue_comment_command(
 
     from untaped_jira.application import AddComment  # noqa: PLC0415
 
+    if key is None:
+        _show_issue_help("comment")
     with report_errors():
         ui = _ui_for_format(fmt)
         resolved_body = _resolve_body(body=body, body_file=body_file)
@@ -267,7 +273,7 @@ def issue_comment_command(
 
 @issue_app.command(name="transitions")
 def issue_transitions_command(
-    key: Annotated[str, Parameter(help="Issue key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -277,6 +283,8 @@ def issue_transitions_command(
 
     from untaped_jira.application import ListTransitions  # noqa: PLC0415
 
+    if key is None:
+        _show_issue_help("transitions")
     with report_errors():
         ui = _ui_for_format(fmt)
         with open_client(profile) as client:
@@ -286,7 +294,7 @@ def issue_transitions_command(
 
 @issue_app.command(name="transition")
 def issue_transition_command(
-    key: Annotated[str, Parameter(help="Issue key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Issue key or id.")] = None,
     *,
     to: Annotated[str | None, Parameter(name="--to", help="Transition name.")] = None,
     transition_id: Annotated[str | None, Parameter(name="--id", help="Transition id.")] = None,
@@ -298,6 +306,8 @@ def issue_transition_command(
 
     from untaped_jira.application import TransitionIssue  # noqa: PLC0415
 
+    if key is None:
+        _show_issue_help("transition")
     with report_errors():
         ui = _ui_for_format(fmt)
         with open_client(profile) as client:
@@ -329,7 +339,7 @@ def project_list_command(
 
 @project_app.command(name="get")
 def project_get_command(
-    key: Annotated[str, Parameter(help="Project key or id.")],
+    key: Annotated[str | None, Parameter(name="", help="Project key or id.")] = None,
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -339,6 +349,8 @@ def project_get_command(
 
     from untaped_jira.application import GetProject  # noqa: PLC0415
 
+    if key is None:
+        _show_project_help("get")
     with report_errors():
         ui = _ui_for_format(fmt)
         with open_client(profile) as client:
@@ -450,6 +462,16 @@ def _trim_terminal_newline(value: str) -> str:
     if value.endswith(("\n", "\r")):
         return value[:-1]
     return value
+
+
+def _show_issue_help(command: str) -> NoReturn:
+    issue_app.help_print([command])
+    raise SystemExit()
+
+
+def _show_project_help(command: str) -> NoReturn:
+    project_app.help_print([command])
+    raise SystemExit()
 
 
 app.command(issue_app, name="issue")

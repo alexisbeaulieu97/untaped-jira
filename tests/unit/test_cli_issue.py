@@ -86,6 +86,22 @@ def test_issue_get_renders_key_first(jira_config: Path) -> None:
     assert result.stdout.strip() == "ABC-1"
 
 
+def test_issue_required_argument_commands_show_help_without_key() -> None:
+    runner = CliInvoker()
+
+    for args in (
+        ["issue", "get"],
+        ["issue", "edit"],
+        ["issue", "comment"],
+        ["issue", "transitions"],
+        ["issue", "transition"],
+    ):
+        result = runner.invoke(app, args)
+
+        assert result.exit_code == 0, result.output
+        assert "Usage:" in result.output
+
+
 def test_issue_search_sends_jql_and_renders_issue_keys(jira_config: Path) -> None:
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.post("/rest/api/2/search").mock(
