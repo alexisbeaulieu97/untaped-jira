@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpx
 import respx
-from typer.testing import CliRunner
+from untaped.testing import CliInvoker
 
 from untaped_jira import app
 
@@ -16,7 +16,9 @@ def test_project_list_outputs_project_keys(jira_config: Path) -> None:
         mock.get("/rest/api/2/project").mock(
             return_value=httpx.Response(200, json=[{"id": "10000", "key": "ABC", "name": "App"}])
         )
-        result = CliRunner().invoke(app, ["project", "list", "--format", "raw", "--columns", "key"])
+        result = CliInvoker().invoke(
+            app, ["project", "list", "--format", "raw", "--columns", "key"]
+        )
 
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "ABC"
@@ -27,12 +29,20 @@ def test_project_get_outputs_one_project(jira_config: Path) -> None:
         mock.get("/rest/api/2/project/ABC").mock(
             return_value=httpx.Response(200, json={"id": "10000", "key": "ABC", "name": "App"})
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app, ["project", "get", "ABC", "--format", "raw", "--columns", "key"]
         )
 
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "ABC"
+
+
+def test_project_get_missing_key_is_usage_error() -> None:
+    result = CliInvoker().invoke(app, ["project", "get"])
+
+    assert result.exit_code == 2, result.output
+    assert result.stdout == ""
+    assert "requires an argument" in result.stderr
 
 
 def test_board_list_filters_by_project(jira_config: Path) -> None:
@@ -48,7 +58,7 @@ def test_board_list_filters_by_project(jira_config: Path) -> None:
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app, ["board", "list", "--project", "ABC", "--format", "raw", "--columns", "id"]
         )
 
@@ -78,7 +88,7 @@ def test_sprint_list_uses_configured_default_board(jira_config: Path) -> None:
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app, ["sprint", "list", "--state", "active", "--format", "raw", "--columns", "id"]
         )
 

@@ -1,4 +1,4 @@
-"""Typer commands for Jira Data Center ticket workflow."""
+"""Cyclopts commands for Jira Data Center ticket workflow."""
 
 from __future__ import annotations
 
@@ -6,17 +6,18 @@ import sys
 from pathlib import Path
 from typing import Annotated, Literal
 
-import typer
+from cyclopts import Parameter, validators
 from untaped import (
     ColumnsOption,
     ConfigError,
     FormatOption,
-    OutputFormat,
     ProfileOverrideOption,
-    UiContext,
+    create_app,
+    echo,
+    existing_file,
     parse_kv_pairs,
+    render_rows,
     report_errors,
-    ui_context,
 )
 
 from untaped_jira.cli._client import current_jira_settings, open_client
@@ -27,26 +28,35 @@ from untaped_jira.domain import (
     read_payload_file,
 )
 
-LimitOption = Annotated[int, typer.Option("--limit", min=1, help="Maximum rows to return.")]
-
-app = typer.Typer(
+LimitOption = Annotated[
+    int,
+    Parameter(
+        name="--limit",
+        validator=validators.Number(gte=1),
+        help="Maximum rows to return.",
+    ),
+]
+FieldOption = Annotated[
+    list[str] | None,
+    Parameter(name="--field", help="Set a string field KEY=VALUE.", consume_multiple=False),
+]
+JsonFieldOption = Annotated[
+    list[str] | None,
+    Parameter(name="--json-field", help="Set a field from JSON KEY=JSON.", consume_multiple=False),
+]
+app = create_app(
     name="jira",
     help="Manage Jira Data Center tickets from untaped.",
-    no_args_is_help=True,
 )
-issue_app = typer.Typer(name="issue", help="Manage Jira issues.", no_args_is_help=True)
-project_app = typer.Typer(name="project", help="Look up Jira projects.", no_args_is_help=True)
-board_app = typer.Typer(name="board", help="Look up Jira Software boards.", no_args_is_help=True)
-sprint_app = typer.Typer(name="sprint", help="Look up Jira Software sprints.", no_args_is_help=True)
+issue_app = create_app(name="issue", help="Manage Jira issues.")
+project_app = create_app(name="project", help="Look up Jira projects.")
+board_app = create_app(name="board", help="Look up Jira Software boards.")
+sprint_app = create_app(name="sprint", help="Look up Jira Software sprints.")
 
 
-@app.callback()
-def _callback() -> None:
-    """Manage Jira Data Center tickets from untaped."""
-
-
-@app.command("me")
+@app.command(name="me")
 def me_command(
+    *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -56,15 +66,16 @@ def me_command(
     from untaped_jira.application import WhoAmI  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = WhoAmI(client)().model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@issue_app.command("get", no_args_is_help=True)
+@issue_app.command(name="get")
 def issue_get_command(
-    key: str = typer.Argument(help="Issue key or id."),
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
+    *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -74,20 +85,20 @@ def issue_get_command(
     from untaped_jira.application import GetIssue  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = GetIssue(client)(key).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@issue_app.command("search")
+@issue_app.command(name="search")
 def issue_search_command(
-    jql: str | None = typer.Option(None, "--jql", help="Raw JQL base query."),
-    project: str | None = typer.Option(None, "--project"),
-    assignee: str | None = typer.Option(None, "--assignee"),
-    status: str | None = typer.Option(None, "--status"),
-    text: str | None = typer.Option(None, "--text"),
-    sprint: str | None = typer.Option(None, "--sprint"),
+    *,
+    jql: Annotated[str | None, Parameter(name="--jql", help="Raw JQL base query.")] = None,
+    project: Annotated[str | None, Parameter(name="--project")] = None,
+    assignee: Annotated[str | None, Parameter(name="--assignee")] = None,
+    status: Annotated[str | None, Parameter(name="--status")] = None,
+    text: Annotated[str | None, Parameter(name="--text")] = None,
+    sprint: Annotated[str | None, Parameter(name="--sprint")] = None,
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -98,7 +109,6 @@ def issue_search_command(
     from untaped_jira.application import SearchIssues  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         filters = JiraIssueSearchFilters(
             raw_jql=jql,
             project=project,
@@ -109,16 +119,17 @@ def issue_search_command(
         )
         with open_client(profile) as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
-@issue_app.command("assigned")
+@issue_app.command(name="assigned")
 def issue_assigned_command(
-    jql: str | None = typer.Option(None, "--jql", help="Raw JQL base query."),
-    project: str | None = typer.Option(None, "--project"),
-    status: str | None = typer.Option(None, "--status"),
-    text: str | None = typer.Option(None, "--text"),
-    sprint: str | None = typer.Option(None, "--sprint"),
+    *,
+    jql: Annotated[str | None, Parameter(name="--jql", help="Raw JQL base query.")] = None,
+    project: Annotated[str | None, Parameter(name="--project")] = None,
+    status: Annotated[str | None, Parameter(name="--status")] = None,
+    text: Annotated[str | None, Parameter(name="--text")] = None,
+    sprint: Annotated[str | None, Parameter(name="--sprint")] = None,
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -129,7 +140,6 @@ def issue_assigned_command(
     from untaped_jira.application import SearchIssues  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         settings = current_jira_settings(profile)
         filters = JiraIssueSearchFilters(
             raw_jql=_resolve_assigned_jql(jql=jql, configured=settings.assigned_jql),
@@ -140,7 +150,7 @@ def issue_assigned_command(
         )
         with open_client(profile) as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
@@ -152,17 +162,19 @@ def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
     return stripped
 
 
-@issue_app.command("create")
+@issue_app.command(name="create")
 def issue_create_command(
-    template: Path | None = typer.Option(None, "--template", exists=True, dir_okay=False),
-    project: str | None = typer.Option(None, "--project"),
-    issue_type: str | None = typer.Option(None, "--issue-type"),
-    summary: str | None = typer.Option(None, "--summary"),
-    description: str | None = typer.Option(None, "--description"),
-    field: list[str] | None = typer.Option(None, "--field", help="Set a string field KEY=VALUE."),
-    json_field: list[str] | None = typer.Option(
-        None, "--json-field", help="Set a field from JSON KEY=JSON."
-    ),
+    *,
+    template: Annotated[
+        Path | None,
+        Parameter(name="--template", validator=existing_file),
+    ] = None,
+    project: Annotated[str | None, Parameter(name="--project")] = None,
+    issue_type: Annotated[str | None, Parameter(name="--issue-type")] = None,
+    summary: Annotated[str | None, Parameter(name="--summary")] = None,
+    description: Annotated[str | None, Parameter(name="--description")] = None,
+    field: FieldOption = None,
+    json_field: JsonFieldOption = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -172,7 +184,6 @@ def issue_create_command(
     from untaped_jira.application import CreateIssue  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         base = read_payload_file(template) if template is not None else {}
         payload = build_issue_payload(
             base=base,
@@ -185,19 +196,22 @@ def issue_create_command(
         )
         with open_client(profile) as client:
             row = CreateIssue(client)(payload).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@issue_app.command("edit", no_args_is_help=True)
+@issue_app.command(name="edit")
 def issue_edit_command(
-    key: str = typer.Argument(help="Issue key or id."),
-    body_file: Path | None = typer.Option(None, "--body-file", exists=True, dir_okay=False),
-    summary: str | None = typer.Option(None, "--summary"),
-    description: str | None = typer.Option(None, "--description"),
-    field: list[str] | None = typer.Option(None, "--field", help="Set a string field KEY=VALUE."),
-    json_field: list[str] | None = typer.Option(
-        None, "--json-field", help="Set a field from JSON KEY=JSON."
-    ),
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
+    *,
+    body_file: Annotated[
+        Path | None,
+        Parameter(name="--body-file", validator=existing_file),
+    ] = None,
+    summary: Annotated[str | None, Parameter(name="--summary")] = None,
+    description: Annotated[str | None, Parameter(name="--description")] = None,
+    field: FieldOption = None,
+    json_field: JsonFieldOption = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -207,7 +221,6 @@ def issue_edit_command(
     from untaped_jira.application import EditIssue  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         base = read_payload_file(body_file) if body_file is not None else {}
         payload = build_issue_payload(
             base=base,
@@ -218,14 +231,19 @@ def issue_edit_command(
         )
         with open_client(profile) as client:
             row = EditIssue(client)(key, payload).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@issue_app.command("comment", no_args_is_help=True)
+@issue_app.command(name="comment")
 def issue_comment_command(
-    key: str = typer.Argument(help="Issue key or id."),
-    body: str | None = typer.Option(None, "--body", help="Comment body."),
-    body_file: Path | None = typer.Option(None, "--body-file", exists=True, dir_okay=False),
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
+    *,
+    body: Annotated[str | None, Parameter(name="--body", help="Comment body.")] = None,
+    body_file: Annotated[
+        Path | None,
+        Parameter(name="--body-file", validator=existing_file),
+    ] = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -235,16 +253,17 @@ def issue_comment_command(
     from untaped_jira.application import AddComment  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         resolved_body = _resolve_body(body=body, body_file=body_file)
         with open_client(profile) as client:
             row = AddComment(client)(key, resolved_body).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@issue_app.command("transitions", no_args_is_help=True)
+@issue_app.command(name="transitions")
 def issue_transitions_command(
-    key: str = typer.Argument(help="Issue key or id."),
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
+    *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -254,17 +273,18 @@ def issue_transitions_command(
     from untaped_jira.application import ListTransitions  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [transition.model_dump() for transition in ListTransitions(client)(key)]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
-@issue_app.command("transition", no_args_is_help=True)
+@issue_app.command(name="transition")
 def issue_transition_command(
-    key: str = typer.Argument(help="Issue key or id."),
-    to: str | None = typer.Option(None, "--to", help="Transition name."),
-    transition_id: str | None = typer.Option(None, "--id", help="Transition id."),
+    key: Annotated[str, Parameter(help="Issue key or id.")],
+    /,
+    *,
+    to: Annotated[str | None, Parameter(name="--to", help="Transition name.")] = None,
+    transition_id: Annotated[str | None, Parameter(name="--id", help="Transition id.")] = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -274,18 +294,18 @@ def issue_transition_command(
     from untaped_jira.application import TransitionIssue  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = TransitionIssue(client)(
                 key,
                 transition_id=transition_id,
                 transition_name=to,
             ).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@project_app.command("list")
+@project_app.command(name="list")
 def project_list_command(
+    *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -295,15 +315,16 @@ def project_list_command(
     from untaped_jira.application import ListProjects  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [project.model_dump() for project in ListProjects(client)()]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
-@project_app.command("get", no_args_is_help=True)
+@project_app.command(name="get")
 def project_get_command(
-    key: str = typer.Argument(help="Project key or id."),
+    key: Annotated[str, Parameter(help="Project key or id.")],
+    /,
+    *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
     profile: ProfileOverrideOption = None,
@@ -313,17 +334,20 @@ def project_get_command(
     from untaped_jira.application import GetProject  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             row = GetProject(client)(key).model_dump()
-        typer.echo(_render_rows([row], ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns))
 
 
-@board_app.command("list")
+@board_app.command(name="list")
 def board_list_command(
-    project: str | None = typer.Option(None, "--project", help="Filter by project key or id."),
-    name: str | None = typer.Option(None, "--name", help="Filter by board name."),
-    board_type: Literal["scrum", "kanban"] | None = typer.Option(None, "--type"),
+    *,
+    project: Annotated[
+        str | None,
+        Parameter(name="--project", help="Filter by project key or id."),
+    ] = None,
+    name: Annotated[str | None, Parameter(name="--name", help="Filter by board name.")] = None,
+    board_type: Annotated[Literal["scrum", "kanban"] | None, Parameter(name="--type")] = None,
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -334,7 +358,6 @@ def board_list_command(
     from untaped_jira.application import ListBoards  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         with open_client(profile) as client:
             rows = [
                 board.model_dump()
@@ -345,15 +368,17 @@ def board_list_command(
                     limit=limit,
                 )
             ]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
-@sprint_app.command("list")
+@sprint_app.command(name="list")
 def sprint_list_command(
-    board_id: int | None = typer.Option(None, "--board-id", help="Board id."),
-    state: str | None = typer.Option(
-        None, "--state", help="Sprint state filter, e.g. active,future."
-    ),
+    *,
+    board_id: Annotated[int | None, Parameter(name="--board-id", help="Board id.")] = None,
+    state: Annotated[
+        str | None,
+        Parameter(name="--state", help="Sprint state filter, e.g. active,future."),
+    ] = None,
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
@@ -364,7 +389,6 @@ def sprint_list_command(
     from untaped_jira.application import ListSprints  # noqa: PLC0415
 
     with report_errors():
-        ui = _ui_for_format(fmt)
         settings = current_jira_settings(profile)
         with open_client(profile) as client:
             rows = [
@@ -375,23 +399,7 @@ def sprint_list_command(
                     limit=limit,
                 )
             ]
-        typer.echo(_render_rows(rows, ui=ui, fmt=fmt, columns=columns))
-
-
-def _render_rows(
-    rows: list[dict[str, object]],
-    *,
-    ui: UiContext,
-    fmt: OutputFormat,
-    columns: list[str] | None,
-) -> str:
-    return ui.collection(rows, fmt=fmt, columns=columns)
-
-
-def _ui_for_format(fmt: OutputFormat) -> UiContext:
-    if fmt == "table":
-        return ui_context()
-    return UiContext()
+        echo(render_rows(rows, fmt=fmt, columns=columns))
 
 
 def _resolve_body(*, body: str | None, body_file: Path | None) -> str:
@@ -419,7 +427,7 @@ def _trim_terminal_newline(value: str) -> str:
     return value
 
 
-app.add_typer(issue_app, name="issue")
-app.add_typer(project_app, name="project")
-app.add_typer(board_app, name="board")
-app.add_typer(sprint_app, name="sprint")
+app.command(issue_app, name="issue")
+app.command(project_app, name="project")
+app.command(board_app, name="board")
+app.command(sprint_app, name="sprint")
