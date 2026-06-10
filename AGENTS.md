@@ -15,14 +15,14 @@ primitives, and shared errors.
 
 1. Keep `AGENTS.md` up to date.
 2. Expose the plugin through the `untaped.plugins` entry point. The plugin
-   object must expose `id = "jira"`, literal `untaped_api_version = 1`,
+   object must expose `id = "jira"`, literal `untaped_api_version = 2`,
    and `register(registry)`.
 3. Use the 4-layer plugin layout: `cli -> application -> domain`, with
    `infrastructure -> domain`.
 4. Declare use-case ports in `application/ports.py`.
 5. Use absolute imports only.
-6. Every Typer app and every command with required args sets
-   `no_args_is_help=True`.
+6. Cyclopts command signatures use `Annotated[..., Parameter(...)]`,
+   explicit public names, and manual bare-command help only when required.
 7. stdout is data only; diagnostics and status go to stderr.
 8. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
 9. Every Jira HTTP client must use `untaped.HttpClient` and
@@ -44,7 +44,7 @@ src/untaped_jira/
 ```
 
 The plugin registers `JiraSettings` as the `jira` profile settings section,
-mounts the Typer app as the root `jira` command, and registers the packaged
+mounts the Cyclopts app as the root `jira` command, and registers the packaged
 `untaped-jira` agent skill. Keep that static skill asset current with major
 Jira workflow changes.
 

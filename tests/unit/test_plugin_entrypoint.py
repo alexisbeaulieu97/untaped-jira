@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from typer.testing import CliRunner
 from untaped import get_config_section
 from untaped.main import build_app
 from untaped.plugins import PluginRegistry
+from untaped.testing import CliInvoker
 
 from untaped_jira.plugin import plugin as jira_plugin
 from untaped_jira.settings import JiraSettings
@@ -27,13 +27,13 @@ def test_jira_plugin_entry_point_is_declared() -> None:
 
 
 def test_jira_plugin_declares_untaped_api_version() -> None:
-    assert jira_plugin.untaped_api_version == 1
+    assert jira_plugin.untaped_api_version == 2
 
 
 def test_root_app_can_register_jira_plugin() -> None:
     app = build_app(plugins=[jira_plugin])
 
-    result = CliRunner().invoke(app, ["jira", "--help"])
+    result = CliInvoker().invoke(app, ["jira", "--help"])
 
     assert result.exit_code == 0, result.output
     assert "Manage Jira Data Center tickets" in result.output
@@ -52,7 +52,7 @@ def test_jira_plugin_registers_agent_skill() -> None:
 def test_root_app_skills_list_includes_registered_jira_skill() -> None:
     app = build_app(plugins=[jira_plugin])
 
-    result = CliRunner().invoke(app, ["skills", "list", "--format", "raw"])
+    result = CliInvoker().invoke(app, ["skills", "list", "--format", "raw"])
 
     assert result.exit_code == 0, result.output
     assert "untaped-jira" in result.stdout.splitlines()
@@ -61,7 +61,7 @@ def test_root_app_skills_list_includes_registered_jira_skill() -> None:
 def test_config_list_includes_registered_jira_settings() -> None:
     app = build_app(plugins=[jira_plugin])
 
-    result = CliRunner().invoke(app, ["config", "list", "--format", "raw", "--columns", "key"])
+    result = CliInvoker().invoke(app, ["config", "list", "--format", "raw", "--columns", "key"])
 
     assert result.exit_code == 0, result.output
     assert "jira.base_url" in result.stdout
@@ -73,7 +73,7 @@ def test_config_list_includes_registered_jira_settings() -> None:
 def test_config_list_redacts_jira_token(jira_config: Path) -> None:
     app = build_app(plugins=[jira_plugin])
 
-    result = CliRunner().invoke(
+    result = CliInvoker().invoke(
         app, ["config", "list", "--format", "raw", "--columns", "key", "--columns", "value"]
     )
 

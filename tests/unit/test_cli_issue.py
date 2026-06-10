@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 import respx
-from typer.testing import CliRunner
+from untaped.testing import CliInvoker
 
 from untaped_jira import app
 
@@ -17,7 +17,7 @@ def test_me_reads_authenticated_jira_user(jira_config: Path) -> None:
         mock.get("/rest/api/2/myself").mock(
             return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
         )
-        result = CliRunner().invoke(app, ["me", "--format", "raw", "--columns", "name"])
+        result = CliInvoker().invoke(app, ["me", "--format", "raw", "--columns", "name"])
 
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "alexis"
@@ -37,7 +37,7 @@ def test_me_honors_global_ui_collection_view_for_table_output(jira_config: Path)
         mock.get("/rest/api/2/myself").mock(
             return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
         )
-        result = CliRunner().invoke(app, ["me"])
+        result = CliInvoker().invoke(app, ["me"])
 
     assert result.exit_code == 0, result.output
     assert "name: alexis" in result.stdout
@@ -59,7 +59,7 @@ def test_me_raw_ignores_unknown_global_ui_theme(jira_config: Path) -> None:
         mock.get("/rest/api/2/myself").mock(
             return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
         )
-        result = CliRunner().invoke(app, ["me", "--format", "raw", "--columns", "name"])
+        result = CliInvoker().invoke(app, ["me", "--format", "raw", "--columns", "name"])
 
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "alexis"
@@ -78,7 +78,7 @@ def test_issue_get_renders_key_first(jira_config: Path) -> None:
     }
     with respx.mock(base_url="https://jira.example.com") as mock:
         mock.get("/rest/api/2/issue/ABC-1").mock(return_value=httpx.Response(200, json=payload))
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app, ["issue", "get", "ABC-1", "--format", "raw", "--columns", "key"]
         )
 
@@ -99,7 +99,7 @@ def test_issue_search_sends_jql_and_renders_issue_keys(jira_config: Path) -> Non
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",
@@ -134,7 +134,7 @@ def test_issue_assigned_uses_default_assigned_jql(jira_config: Path) -> None:
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             ["issue", "assigned", "--format", "raw", "--columns", "key"],
         )
@@ -168,7 +168,7 @@ def test_issue_assigned_uses_configured_assigned_jql(jira_config: Path) -> None:
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             ["issue", "assigned", "--format", "raw", "--columns", "key"],
         )
@@ -204,7 +204,7 @@ def test_issue_assigned_jql_option_overrides_configured_assigned_jql(
                 },
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",
@@ -237,7 +237,7 @@ def test_issue_assigned_rejects_blank_jql_override(jira_config: Path) -> None:
                 json={"startAt": 0, "maxResults": 50, "total": 0, "issues": []},
             )
         )
-        result = CliRunner().invoke(app, ["issue", "assigned", "--jql", ""])
+        result = CliInvoker().invoke(app, ["issue", "assigned", "--jql", ""])
 
     assert result.exit_code != 0
     assert "--jql must not be blank" in result.output
@@ -252,7 +252,7 @@ def test_issue_assigned_rejects_whitespace_jql_override(jira_config: Path) -> No
                 json={"startAt": 0, "maxResults": 50, "total": 0, "issues": []},
             )
         )
-        result = CliRunner().invoke(app, ["issue", "assigned", "--jql", "   "])
+        result = CliInvoker().invoke(app, ["issue", "assigned", "--jql", "   "])
 
     assert result.exit_code != 0
     assert "--jql must not be blank" in result.output
@@ -269,7 +269,7 @@ def test_issue_create_merges_template_and_flags(jira_config: Path, tmp_path: Pat
                 json={"id": "10001", "key": "ABC-1", "self": "https://jira.example.com/ABC-1"},
             )
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",
@@ -310,7 +310,7 @@ def test_issue_edit_sends_body_file_and_overlays_flags(jira_config: Path, tmp_pa
     body_file.write_text("fields:\n  summary: old\n")
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.put("/rest/api/2/issue/ABC-1").mock(return_value=httpx.Response(204))
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",
@@ -343,7 +343,7 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
             return_value=httpx.Response(201, json={"id": "700"})
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             ["issue", "comment", "ABC-1", "--format", "raw", "--columns", "id"],
             input="hello from stdin\n",
@@ -368,7 +368,7 @@ def test_issue_comment_does_not_post_when_table_theme_is_unknown(jira_config: Pa
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
             return_value=httpx.Response(201, json={"id": "700"})
         )
-        result = CliRunner().invoke(app, ["issue", "comment", "ABC-1", "--body", "hello"])
+        result = CliInvoker().invoke(app, ["issue", "comment", "ABC-1", "--body", "hello"])
 
     assert result.exit_code != 0
     assert "unknown UI theme" in result.output
@@ -380,7 +380,7 @@ def test_issue_comment_preserves_formatted_stdin_body(jira_config: Path) -> None
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
             return_value=httpx.Response(201, json={"id": "700"})
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             ["issue", "comment", "ABC-1", "--format", "raw", "--columns", "id"],
             input="line1\n\n    code\nline3\n",
@@ -401,7 +401,7 @@ def test_issue_comment_preserves_formatted_body_file(
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
             return_value=httpx.Response(201, json={"id": "700"})
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",
@@ -429,7 +429,7 @@ def test_issue_transition_by_name_rejects_ambiguous_match(jira_config: Path) -> 
                 json={"transitions": [{"id": "1", "name": "Done"}, {"id": "2", "name": "done"}]},
             )
         )
-        result = CliRunner().invoke(app, ["issue", "transition", "ABC-1", "--to", "done"])
+        result = CliInvoker().invoke(app, ["issue", "transition", "ABC-1", "--to", "done"])
 
     assert result.exit_code != 0
     assert "multiple transitions" in result.output or "multiple transitions" in str(
@@ -442,7 +442,7 @@ def test_issue_transition_by_id_posts_transition(jira_config: Path) -> None:
         route = mock.post("/rest/api/2/issue/ABC-1/transitions").mock(
             return_value=httpx.Response(204)
         )
-        result = CliRunner().invoke(
+        result = CliInvoker().invoke(
             app,
             [
                 "issue",

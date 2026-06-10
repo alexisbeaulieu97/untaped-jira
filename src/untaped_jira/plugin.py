@@ -15,7 +15,7 @@ class JiraPlugin:
     """Register Jira settings and commands with the untaped runtime."""
 
     id = "jira"
-    untaped_api_version = 1
+    untaped_api_version = 2
 
     def register(self, registry: PluginRegistry) -> None:
         registry.add_profile_settings("jira", JiraSettings)

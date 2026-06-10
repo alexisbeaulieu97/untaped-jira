@@ -1,4 +1,4 @@
-"""Typer app for the Jira plugin."""
+"""Cyclopts app for the Jira plugin."""
 
 from untaped_jira.cli.commands import app
 
