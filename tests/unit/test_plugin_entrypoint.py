@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from untaped import get_config_section
+from untaped.api import PluginManifest, PluginRegistry, get_config_section
 from untaped.main import build_app
-from untaped.plugins import PluginRegistry
+from untaped.plugins import register_plugins
 from untaped.testing import CliInvoker
 
 from untaped_jira.plugin import plugin as jira_plugin
@@ -27,7 +29,40 @@ def test_jira_plugin_entry_point_is_declared() -> None:
 
 
 def test_jira_plugin_declares_untaped_api_version() -> None:
-    assert jira_plugin.untaped_api_version == 2
+    assert jira_plugin.untaped_api_version == 3
+
+
+def test_jira_plugin_manifest_declares_all_contributions() -> None:
+    manifest = jira_plugin.manifest()
+
+    assert isinstance(manifest, PluginManifest)
+    [cli] = manifest.clis
+    assert cli.name == "jira"
+    assert cli.app is None
+    assert cli.import_path == "untaped_jira.cli:app"
+    assert cli.help == "Manage Jira Data Center tickets from untaped."
+    assert manifest.profile_settings == {"jira": JiraSettings}
+    [skill] = manifest.skills
+    assert skill.name == "untaped-jira"
+    assert skill.description == "Use the untaped Jira plugin."
+    assert skill.source.joinpath("SKILL.md").is_file()
+
+
+def test_importing_plugin_module_does_not_import_cli_commands() -> None:
+    probe = (
+        "import sys\n"
+        "import untaped_jira.plugin\n"
+        "assert 'untaped_jira.cli.commands' not in sys.modules, 'CLI imported eagerly'\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_root_app_can_register_jira_plugin() -> None:
@@ -39,11 +74,15 @@ def test_root_app_can_register_jira_plugin() -> None:
     assert "Manage Jira Data Center tickets" in result.output
 
 
-def test_jira_plugin_registers_agent_skill() -> None:
+def test_jira_plugin_manifest_registers_cleanly() -> None:
     registry = PluginRegistry()
 
-    jira_plugin.register(registry)
+    register_plugins(registry, [jira_plugin])
 
+    assert registry.load_errors == []
+    assert registry.plugin_ids == {"jira"}
+    assert "jira" in registry.lazy_clis
+    assert registry.profile_sections["jira"] is JiraSettings
     spec = registry.skills["untaped-jira"]
     assert spec.description == "Use the untaped Jira plugin."
     assert spec.source.joinpath("SKILL.md").is_file()

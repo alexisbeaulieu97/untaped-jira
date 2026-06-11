@@ -15,22 +15,30 @@ primitives, and shared errors.
 
 1. Keep `AGENTS.md` up to date.
 2. Expose the plugin through the `untaped.plugins` entry point. The plugin
-   object must expose `id = "jira"`, literal `untaped_api_version = 2`,
-   and `register(registry)`.
-3. Use the 4-layer plugin layout: `cli -> application -> domain`, with
+   object must expose `id = "jira"`, literal `untaped_api_version = 3`,
+   and `manifest()` returning an `untaped.api.PluginManifest`.
+3. Import the SDK surface from `untaped.api` only (tests may also use
+   `untaped.testing`). Never reach into core internals from `src/`.
+4. `plugin.py` must never import the CLI app. The manifest declares
+   `CliSpec(name="jira", import_path="untaped_jira.cli:app", help=...)` and
+   `untaped_jira/__init__.py` re-exports `app` lazily via a PEP 562 module
+   `__getattr__` so importing the package stays CLI-free.
+5. Use the 4-layer plugin layout: `cli -> application -> domain`, with
    `infrastructure -> domain`.
-4. Declare use-case ports in `application/ports.py`.
-5. Use absolute imports only.
-6. Cyclopts command signatures use `Annotated[..., Parameter(...)]` and
+6. Declare use-case ports in `application/ports.py`.
+7. Use absolute imports only.
+8. Cyclopts command signatures use `Annotated[..., Parameter(...)]` and
    explicit public names. Required inputs are required positional-only
    params (`Parameter(help=...)` before `/`); a missing value renders
    `error: ... requires an argument` (exit 2) automatically — never an
    optional default plus a manual help dance.
-7. stdout is data only; diagnostics and status go to stderr.
-8. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
-9. Every Jira HTTP client must use `untaped.HttpClient` and
-   `resolve_verify(settings.http)`.
-10. Finish with `uv run ruff check`, `uv run ruff format`, `uv run mypy`,
+9. stdout is data only; diagnostics and status go to stderr.
+10. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
+11. CLI commands resolve settings through `untaped.api.plugin_context`; the
+    Jira HTTP client is built with `untaped.api.connected_client` (settings
+    validation, bearer auth, TLS resolution) and walks `startAt`/`maxResults`
+    envelopes with `untaped.api.paginate_offset`.
+12. Finish with `uv run ruff check`, `uv run ruff format`, `uv run mypy`,
     and `uv run pytest`.
 
 ## Architecture
@@ -46,10 +54,11 @@ src/untaped_jira/
 └── infrastructure/
 ```
 
-The plugin registers `JiraSettings` as the `jira` profile settings section,
-mounts the Cyclopts app as the root `jira` command, and registers the packaged
-`untaped-jira` agent skill. Keep that static skill asset current with major
-Jira workflow changes.
+The plugin manifest declares `JiraSettings` as the `jira` profile settings
+section, contributes the root `jira` command as a lazy `CliSpec`
+(`untaped_jira.cli:app` is imported only when the command is dispatched), and
+ships the packaged `untaped-jira` agent skill. Keep that static skill asset
+current with major Jira workflow changes.
 
 ## Jira Target
 
