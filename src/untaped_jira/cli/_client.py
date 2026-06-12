@@ -16,17 +16,17 @@ if TYPE_CHECKING:
 
 
 @contextmanager
-def open_client(profile: str | None = None) -> Iterator[JiraClient]:
+def open_client() -> Iterator[JiraClient]:
     """Build a context-managed Jira client from active untaped settings."""
 
     from untaped_jira.infrastructure import JiraClient  # noqa: PLC0415
 
-    ctx = plugin_context(profile)
+    ctx = plugin_context()
     with JiraClient(ctx.section("jira", JiraSettings), http=ctx.http) as client:
         yield client
 
 
-def current_jira_settings(profile: str | None = None) -> JiraSettings:
+def current_jira_settings() -> JiraSettings:
     """Read active Jira settings without opening an HTTP client."""
 
-    return plugin_context(profile).section("jira", JiraSettings)
+    return plugin_context().section("jira", JiraSettings)

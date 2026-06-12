@@ -126,7 +126,7 @@ def test_jira_token_can_be_loaded_from_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cfg = tmp_path / "config.yml"
-    cfg.write_text("profiles:\n  default:\n    jira:\n      base_url: https://jira.example.com\n")
+    cfg.write_text("jira:\n  base_url: https://jira.example.com\n")
     monkeypatch.setenv("UNTAPED_CONFIG", str(cfg))
     monkeypatch.setenv("UNTAPED_JIRA__TOKEN", "from-env")
     build_app(plugins=[jira_plugin])

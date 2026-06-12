@@ -69,12 +69,7 @@ def test_board_list_filters_by_project(jira_config: Path) -> None:
 
 def test_sprint_list_uses_configured_default_board(jira_config: Path) -> None:
     jira_config.write_text(
-        "profiles:\n"
-        "  default:\n"
-        "    jira:\n"
-        "      base_url: https://jira.example.com\n"
-        "      token: jira_pat\n"
-        "      default_board_id: 7\n"
+        "jira:\n  base_url: https://jira.example.com\n  token: jira_pat\n  default_board_id: 7\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.get("/rest/agile/1.0/board/7/sprint").mock(

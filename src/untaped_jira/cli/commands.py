@@ -11,7 +11,6 @@ from untaped.api import (
     ColumnsOption,
     ConfigError,
     FormatOption,
-    ProfileOverrideOption,
     create_app,
     echo,
     existing_file,
@@ -59,14 +58,13 @@ def me_command(
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Show the authenticated Jira user."""
 
     from untaped_jira.application import WhoAmI  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             row = WhoAmI(client)().model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -78,14 +76,13 @@ def issue_get_command(
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Fetch one issue."""
 
     from untaped_jira.application import GetIssue  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             row = GetIssue(client)(key).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -102,7 +99,6 @@ def issue_search_command(
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Search issues with JQL plus common shortcuts."""
 
@@ -117,7 +113,7 @@ def issue_search_command(
             text=text,
             sprint=sprint,
         )
-        with open_client(profile) as client:
+        with open_client() as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
         echo(render_rows(rows, fmt=fmt, columns=columns))
 
@@ -133,14 +129,13 @@ def issue_assigned_command(
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """List issues assigned to the authenticated Jira user."""
 
     from untaped_jira.application import SearchIssues  # noqa: PLC0415
 
     with report_errors():
-        settings = current_jira_settings(profile)
+        settings = current_jira_settings()
         filters = JiraIssueSearchFilters(
             raw_jql=_resolve_assigned_jql(jql=jql, configured=settings.assigned_jql),
             project=project,
@@ -148,7 +143,7 @@ def issue_assigned_command(
             text=text,
             sprint=sprint,
         )
-        with open_client(profile) as client:
+        with open_client() as client:
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
         echo(render_rows(rows, fmt=fmt, columns=columns))
 
@@ -177,7 +172,6 @@ def issue_create_command(
     json_field: JsonFieldOption = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Create one issue from flags and an optional Jira-shaped template."""
 
@@ -187,14 +181,14 @@ def issue_create_command(
         base = read_payload_file(template) if template is not None else {}
         payload = build_issue_payload(
             base=base,
-            project=project or current_jira_settings(profile).default_project,
+            project=project or current_jira_settings().default_project,
             issue_type=issue_type,
             summary=summary,
             description=description,
             fields=parse_kv_pairs(field, flag="--field"),
             json_fields=parse_json_field_assignments(json_field),
         )
-        with open_client(profile) as client:
+        with open_client() as client:
             row = CreateIssue(client)(payload).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -214,7 +208,6 @@ def issue_edit_command(
     json_field: JsonFieldOption = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Edit one issue from flags and an optional Jira-shaped body file."""
 
@@ -229,7 +222,7 @@ def issue_edit_command(
             fields=parse_kv_pairs(field, flag="--field"),
             json_fields=parse_json_field_assignments(json_field),
         )
-        with open_client(profile) as client:
+        with open_client() as client:
             row = EditIssue(client)(key, payload).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -246,7 +239,6 @@ def issue_comment_command(
     ] = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Add a comment to one issue."""
 
@@ -254,7 +246,7 @@ def issue_comment_command(
 
     with report_errors():
         resolved_body = _resolve_body(body=body, body_file=body_file)
-        with open_client(profile) as client:
+        with open_client() as client:
             row = AddComment(client)(key, resolved_body).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -266,14 +258,13 @@ def issue_transitions_command(
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """List available workflow transitions for one issue."""
 
     from untaped_jira.application import ListTransitions  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             rows = [transition.model_dump() for transition in ListTransitions(client)(key)]
         echo(render_rows(rows, fmt=fmt, columns=columns))
 
@@ -287,14 +278,13 @@ def issue_transition_command(
     transition_id: Annotated[str | None, Parameter(name="--id", help="Transition id.")] = None,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Apply one workflow transition by name or id."""
 
     from untaped_jira.application import TransitionIssue  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             row = TransitionIssue(client)(
                 key,
                 transition_id=transition_id,
@@ -308,14 +298,13 @@ def project_list_command(
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """List visible projects."""
 
     from untaped_jira.application import ListProjects  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             rows = [project.model_dump() for project in ListProjects(client)()]
         echo(render_rows(rows, fmt=fmt, columns=columns))
 
@@ -327,14 +316,13 @@ def project_get_command(
     *,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """Fetch one project."""
 
     from untaped_jira.application import GetProject  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             row = GetProject(client)(key).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -351,14 +339,13 @@ def board_list_command(
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """List visible Jira Software boards."""
 
     from untaped_jira.application import ListBoards  # noqa: PLC0415
 
     with report_errors():
-        with open_client(profile) as client:
+        with open_client() as client:
             rows = [
                 board.model_dump()
                 for board in ListBoards(client)(
@@ -382,15 +369,14 @@ def sprint_list_command(
     limit: LimitOption = 50,
     fmt: FormatOption = "table",
     columns: ColumnsOption = None,
-    profile: ProfileOverrideOption = None,
 ) -> None:
     """List sprints for a board."""
 
     from untaped_jira.application import ListSprints  # noqa: PLC0415
 
     with report_errors():
-        settings = current_jira_settings(profile)
-        with open_client(profile) as client:
+        settings = current_jira_settings()
+        with open_client() as client:
             rows = [
                 sprint.model_dump()
                 for sprint in ListSprints(client, default_board_id=settings.default_board_id)(

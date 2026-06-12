@@ -34,7 +34,9 @@ primitives, and shared errors.
    optional default plus a manual help dance.
 9. stdout is data only; diagnostics and status go to stderr.
 10. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
-11. CLI commands resolve settings through `untaped.api.plugin_context`; the
+11. CLI commands resolve settings through bare `untaped.api.plugin_context()`.
+    Profile selection is owned by the root `--profile` option (valid in any
+    token position); commands must not declare their own `--profile`. The
     Jira HTTP client is built with `untaped.api.connected_client` (settings
     validation, bearer auth, TLS resolution) and walks `startAt`/`maxResults`
     envelopes with `untaped.api.paginate_offset`.
