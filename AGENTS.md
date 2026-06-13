@@ -8,12 +8,14 @@ in the same commit.
 
 `untaped-jira` is an `untaped` plugin. It owns the `untaped jira` command
 group for Jira Data Center ticket workflow. `untaped` core owns the binary,
-plugin discovery, config/profile resolution, output helpers, HTTP/TLS
-primitives, and shared errors.
+plugin discovery, config loading, output helpers, HTTP/TLS primitives, and
+shared errors. Profile selection is contributed by `untaped-profile`.
 
 ## Hard Rules
 
-1. Keep `AGENTS.md` up to date.
+1. Keep `AGENTS.md` and the packaged skill up to date. Architecture, command
+   behavior, settings, and major Jira workflow changes must be documented here
+   and in `src/untaped_jira/skills/untaped-jira/SKILL.md`.
 2. Expose the plugin through the `untaped.plugins` entry point. The plugin
    object must expose `id = "jira"`, literal `untaped_api_version = 3`,
    and `manifest()` returning an `untaped.api.PluginManifest`.
