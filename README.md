@@ -26,18 +26,20 @@ Codex or Claude through the core
 ## Configuration
 
 ```yaml
-profiles:
-  default:
-    jira:
-      base_url: https://jira.example.com
-      token: <personal-access-token>
-      api_prefix: /rest/api/2
-      agile_prefix: /rest/agile/1.0
-      assigned_jql: assignee = currentUser() AND resolution = Unresolved
-      default_project: ABC
-      default_board_id: 42
-      page_size: 50
+jira:
+  base_url: https://jira.example.com
+  token: <personal-access-token>
+  api_prefix: /rest/api/2
+  agile_prefix: /rest/agile/1.0
+  assigned_jql: assignee = currentUser() AND resolution = Unresolved
+  default_project: ABC
+  default_board_id: 42
+  page_size: 50
 ```
+
+Config keys live at the top level. To organize multiple environments under
+`profiles:` (with a root `--profile <name>` selector), install the
+[`untaped-profile`](https://github.com/alexisbeaulieu97/untaped-profile) plugin.
 
 `jira.token` is a secret setting. It can also be provided through the environment:
 
