@@ -14,7 +14,7 @@ class JiraPlugin:
     """Declare the Jira plugin's contributions to the untaped runtime."""
 
     id = "jira"
-    untaped_api_version = 3
+    untaped_api_version = 5
 
     def manifest(self) -> PluginManifest:
         """Describe the Jira CLI, settings section, and agent skill as data."""

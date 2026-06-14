@@ -90,3 +90,68 @@ def test_sprint_list_uses_configured_default_board(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "20"
     assert route.calls[0].request.url.params["state"] == "active"
+
+
+def test_project_list_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/project").mock(return_value=httpx.Response(200, json=[]))
+        result = CliInvoker().invoke(app, ["project", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No projects are visible to you" in result.stderr
+
+
+def test_project_list_empty_json_stays_pipe_clean(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/project").mock(return_value=httpx.Response(200, json=[]))
+        result = CliInvoker().invoke(app, ["project", "list", "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "[]"
+    assert "No projects are visible to you" not in result.stderr
+
+
+def test_project_list_reports_progress_on_stderr(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/project").mock(
+            return_value=httpx.Response(200, json=[{"id": "10000", "key": "ABC", "name": "App"}])
+        )
+        result = CliInvoker().invoke(
+            app, ["project", "list", "--format", "raw", "--columns", "key"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "ABC"
+    assert "Listing projects" in result.stderr
+    assert "Listing projects" not in result.stdout
+
+
+def test_board_list_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/agile/1.0/board").mock(
+            return_value=httpx.Response(
+                200,
+                json={"startAt": 0, "maxResults": 50, "isLast": True, "values": []},
+            )
+        )
+        result = CliInvoker().invoke(app, ["board", "list"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No boards match the filter" in result.stderr
+
+
+def test_sprint_list_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/agile/1.0/board/7/sprint").mock(
+            return_value=httpx.Response(
+                200,
+                json={"startAt": 0, "maxResults": 50, "isLast": True, "values": []},
+            )
+        )
+        result = CliInvoker().invoke(app, ["sprint", "list", "--board-id", "7"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No sprints found for this board" in result.stderr
