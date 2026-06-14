@@ -131,3 +131,35 @@ def test_sprint_list_pipe_tags_sprint(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout.strip())
     assert envelope["kind"] == "jira.sprint"
+
+
+def test_issue_create_pipe_tags_issue(jira_config: Path) -> None:
+    """A mutation result is tagged as the entity it affects (jira.issue), not an outcome."""
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/issue").mock(
+            return_value=httpx.Response(
+                201, json={"id": "10001", "key": "ABC-1", "self": "https://jira.example.com/ABC-1"}
+            )
+        )
+        result = CliInvoker().invoke(
+            app, ["issue", "create", "--project", "ABC", "--summary", "x", "--format", "pipe"]
+        )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout.strip())
+    assert envelope["kind"] == "jira.issue"
+    assert envelope["record"]["key"] == "ABC-1"
+
+
+def test_issue_transition_pipe_tags_issue(jira_config: Path) -> None:
+    """`issue transition` (mutation) also tags jira.issue, while `issue
+    transitions` (the list) tags jira.transition — the singular/plural split."""
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/issue/ABC-1/transitions").mock(return_value=httpx.Response(204))
+        result = CliInvoker().invoke(
+            app, ["issue", "transition", "ABC-1", "--id", "31", "--format", "pipe"]
+        )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout.strip())
+    assert envelope["kind"] == "jira.issue"
