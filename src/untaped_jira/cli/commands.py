@@ -64,7 +64,7 @@ def me_command(
     from untaped_jira.application import WhoAmI  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Fetching authenticated user…"):
             row = WhoAmI(client)().model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -82,7 +82,7 @@ def issue_get_command(
     from untaped_jira.application import GetIssue  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Fetching issue…"):
             row = GetIssue(client)(key).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -113,9 +113,11 @@ def issue_search_command(
             text=text,
             sprint=sprint,
         )
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Querying Jira issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No issues match the query.")
+        if rendered:
+            echo(rendered)
 
 
 @issue_app.command(name="assigned")
@@ -143,9 +145,11 @@ def issue_assigned_command(
             text=text,
             sprint=sprint,
         )
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Querying assigned issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No issues assigned to you.")
+        if rendered:
+            echo(rendered)
 
 
 def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
@@ -188,7 +192,7 @@ def issue_create_command(
             fields=parse_kv_pairs(field, flag="--field"),
             json_fields=parse_json_field_assignments(json_field),
         )
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Creating issue…"):
             row = CreateIssue(client)(payload).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -222,7 +226,7 @@ def issue_edit_command(
             fields=parse_kv_pairs(field, flag="--field"),
             json_fields=parse_json_field_assignments(json_field),
         )
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Updating issue…"):
             row = EditIssue(client)(key, payload).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -246,7 +250,7 @@ def issue_comment_command(
 
     with report_errors():
         resolved_body = _resolve_body(body=body, body_file=body_file)
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Adding comment…"):
             row = AddComment(client)(key, resolved_body).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -264,9 +268,16 @@ def issue_transitions_command(
     from untaped_jira.application import ListTransitions  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Fetching available transitions…"):
             rows = [transition.model_dump() for transition in ListTransitions(client)(key)]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(
+            rows,
+            fmt=fmt,
+            columns=columns,
+            empty="No transitions available for this issue.",
+        )
+        if rendered:
+            echo(rendered)
 
 
 @issue_app.command(name="transition")
@@ -284,7 +295,7 @@ def issue_transition_command(
     from untaped_jira.application import TransitionIssue  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Applying transition…"):
             row = TransitionIssue(client)(
                 key,
                 transition_id=transition_id,
@@ -304,9 +315,16 @@ def project_list_command(
     from untaped_jira.application import ListProjects  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Listing projects…"):
             rows = [project.model_dump() for project in ListProjects(client)()]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(
+            rows,
+            fmt=fmt,
+            columns=columns,
+            empty="No projects are visible to you.",
+        )
+        if rendered:
+            echo(rendered)
 
 
 @project_app.command(name="get")
@@ -322,7 +340,7 @@ def project_get_command(
     from untaped_jira.application import GetProject  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Fetching project…"):
             row = GetProject(client)(key).model_dump()
         echo(render_rows([row], fmt=fmt, columns=columns))
 
@@ -345,7 +363,7 @@ def board_list_command(
     from untaped_jira.application import ListBoards  # noqa: PLC0415
 
     with report_errors():
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Listing boards…"):
             rows = [
                 board.model_dump()
                 for board in ListBoards(client)(
@@ -355,7 +373,9 @@ def board_list_command(
                     limit=limit,
                 )
             ]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No boards match the filter.")
+        if rendered:
+            echo(rendered)
 
 
 @sprint_app.command(name="list")
@@ -376,7 +396,7 @@ def sprint_list_command(
 
     with report_errors():
         settings = current_jira_settings()
-        with open_client() as client:
+        with open_client() as (client, ui), ui.progress("Listing sprints…"):
             rows = [
                 sprint.model_dump()
                 for sprint in ListSprints(client, default_board_id=settings.default_board_id)(
@@ -385,7 +405,14 @@ def sprint_list_command(
                     limit=limit,
                 )
             ]
-        echo(render_rows(rows, fmt=fmt, columns=columns))
+        rendered = render_rows(
+            rows,
+            fmt=fmt,
+            columns=columns,
+            empty="No sprints found for this board.",
+        )
+        if rendered:
+            echo(rendered)
 
 
 def _resolve_body(*, body: str | None, body_file: Path | None) -> str:

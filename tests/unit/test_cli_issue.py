@@ -459,3 +459,74 @@ def test_issue_transition_by_id_posts_transition(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "31"
     assert json.loads(route.calls[0].request.content) == {"transition": {"id": "31"}}
+
+
+def _empty_search() -> httpx.Response:
+    return httpx.Response(200, json={"startAt": 0, "maxResults": 50, "total": 0, "issues": []})
+
+
+def test_issue_search_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/search").mock(return_value=_empty_search())
+        result = CliInvoker().invoke(app, ["issue", "search", "--project", "ABC"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No issues match the query" in result.stderr
+
+
+def test_issue_search_empty_json_stays_pipe_clean(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/search").mock(return_value=_empty_search())
+        result = CliInvoker().invoke(
+            app, ["issue", "search", "--project", "ABC", "--format", "json"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "[]"
+    assert "No issues match the query" not in result.stderr
+
+
+def test_issue_search_reports_progress_on_stderr(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/search").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "startAt": 0,
+                    "maxResults": 50,
+                    "total": 1,
+                    "issues": [{"key": "ABC-1", "fields": {"summary": "Fix deploy"}}],
+                },
+            )
+        )
+        result = CliInvoker().invoke(
+            app, ["issue", "search", "--project", "ABC", "--format", "raw", "--columns", "key"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == "ABC-1"
+    assert "Querying Jira issues" in result.stderr
+    assert "Querying Jira issues" not in result.stdout
+
+
+def test_issue_assigned_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.post("/rest/api/2/search").mock(return_value=_empty_search())
+        result = CliInvoker().invoke(app, ["issue", "assigned"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No issues assigned to you" in result.stderr
+
+
+def test_issue_transitions_empty_guides_with_stderr_hint(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        mock.get("/rest/api/2/issue/ABC-1/transitions").mock(
+            return_value=httpx.Response(200, json={"transitions": []})
+        )
+        result = CliInvoker().invoke(app, ["issue", "transitions", "ABC-1"])
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == ""
+    assert "No transitions available for this issue" in result.stderr
