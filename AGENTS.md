@@ -17,7 +17,7 @@ shared errors. Profile selection is contributed by `untaped-profile`.
    behavior, settings, and major Jira workflow changes must be documented here
    and in `src/untaped_jira/skills/untaped-jira/SKILL.md`.
 2. Expose the plugin through the `untaped.plugins` entry point. The plugin
-   object must expose `id = "jira"`, literal `untaped_api_version = 3`,
+   object must expose `id = "jira"`, literal `untaped_api_version = 5`,
    and `manifest()` returning an `untaped.api.PluginManifest`.
 3. Import the SDK surface from `untaped.api` only (tests may also use
    `untaped.testing`). Never reach into core internals from `src/`.
@@ -97,3 +97,23 @@ profiles:
 `untaped jira issue assigned` lists the authenticated user's assigned issues
 using `jira.assigned_jql` unless `--jql` is passed. `untaped jira issue get KEY`
 is the canonical concise ticket lookup command.
+
+## Output and piping
+
+Every row-producing command supports `--format pipe` (core's self-describing
+NDJSON): one `{"untaped":"1","kind":...,"record":{...}}` object per line, so a
+jira command's output can be piped into another untaped command. Each record is
+tagged with a namespaced `kind` hint:
+
+| `kind` | Commands |
+| --- | --- |
+| `jira.issue` | `issue get` / `search` / `assigned` / `create` / `edit` / `transition` |
+| `jira.comment` | `issue comment` |
+| `jira.transition` | `issue transitions` |
+| `jira.project` | `project list` / `get` |
+| `jira.board` | `board list` |
+| `jira.sprint` | `sprint list` |
+| `jira.user` | `me` |
+
+`kind` is an advisory hint, not a contract; downstream consumers validate only
+the fields they need.

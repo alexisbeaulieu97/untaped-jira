@@ -21,6 +21,7 @@ Use this skill when the user wants an agent to operate `untaped jira` for Jira D
 - Use `untaped jira issue assigned` to list tickets assigned to the authenticated Jira user. It uses `jira.assigned_jql` unless `--jql` is passed.
 - Use `untaped jira issue get KEY` to fetch one concise ticket row by key or id.
 - Prefer JSON output for issue, board, sprint, transition, project, and search workflows.
+- Use `--format pipe` to chain into another untaped command: it emits one self-describing record per line, each tagged with a `kind` (`jira.issue`, `jira.project`, `jira.board`, `jira.sprint`, `jira.user`, `jira.comment`, `jira.transition`).
 - Use configured defaults only after checking effective config with `untaped config list --format raw --columns key --columns value`.
 
 ## Agent Guidance
