@@ -66,7 +66,7 @@ def me_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching authenticated user…"):
             row = WhoAmI(client)().model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.user"))
 
 
 @issue_app.command(name="get")
@@ -84,7 +84,7 @@ def issue_get_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching issue…"):
             row = GetIssue(client)(key).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
 
 
 @issue_app.command(name="search")
@@ -115,7 +115,9 @@ def issue_search_command(
         )
         with open_client() as (client, ui), ui.progress("Querying Jira issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No issues match the query.")
+        rendered = render_rows(
+            rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues match the query."
+        )
         if rendered:
             echo(rendered)
 
@@ -147,7 +149,9 @@ def issue_assigned_command(
         )
         with open_client() as (client, ui), ui.progress("Querying assigned issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No issues assigned to you.")
+        rendered = render_rows(
+            rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues assigned to you."
+        )
         if rendered:
             echo(rendered)
 
@@ -194,7 +198,7 @@ def issue_create_command(
         )
         with open_client() as (client, ui), ui.progress("Creating issue…"):
             row = CreateIssue(client)(payload).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
 
 
 @issue_app.command(name="edit")
@@ -228,7 +232,7 @@ def issue_edit_command(
         )
         with open_client() as (client, ui), ui.progress("Updating issue…"):
             row = EditIssue(client)(key, payload).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
 
 
 @issue_app.command(name="comment")
@@ -252,7 +256,7 @@ def issue_comment_command(
         resolved_body = _resolve_body(body=body, body_file=body_file)
         with open_client() as (client, ui), ui.progress("Adding comment…"):
             row = AddComment(client)(key, resolved_body).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.comment"))
 
 
 @issue_app.command(name="transitions")
@@ -274,6 +278,7 @@ def issue_transitions_command(
             rows,
             fmt=fmt,
             columns=columns,
+            kind="jira.transition",
             empty="No transitions available for this issue.",
         )
         if rendered:
@@ -301,7 +306,7 @@ def issue_transition_command(
                 transition_id=transition_id,
                 transition_name=to,
             ).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
 
 
 @project_app.command(name="list")
@@ -321,6 +326,7 @@ def project_list_command(
             rows,
             fmt=fmt,
             columns=columns,
+            kind="jira.project",
             empty="No projects are visible to you.",
         )
         if rendered:
@@ -342,7 +348,7 @@ def project_get_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching project…"):
             row = GetProject(client)(key).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns))
+        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.project"))
 
 
 @board_app.command(name="list")
@@ -373,7 +379,9 @@ def board_list_command(
                     limit=limit,
                 )
             ]
-        rendered = render_rows(rows, fmt=fmt, columns=columns, empty="No boards match the filter.")
+        rendered = render_rows(
+            rows, fmt=fmt, columns=columns, kind="jira.board", empty="No boards match the filter."
+        )
         if rendered:
             echo(rendered)
 
@@ -409,6 +417,7 @@ def sprint_list_command(
             rows,
             fmt=fmt,
             columns=columns,
+            kind="jira.sprint",
             empty="No sprints found for this board.",
         )
         if rendered:
