@@ -1,68 +1,76 @@
 # AGENTS.md - `untaped-jira`
 
-Single source of truth for this standalone plugin repo. If architecture,
-command behavior, settings behavior, or workflow changes, update this file
-in the same commit.
+Single source of truth for this standalone CLI repo. If you change
+architecture, command behavior, settings behavior, or the development
+workflow, update this file in the same commit.
 
 ## Mission
 
-`untaped-jira` is an `untaped` plugin. It owns the `untaped jira` command
-group for Jira Data Center ticket workflow. `untaped` core owns the binary,
-plugin discovery, config loading, output helpers, HTTP/TLS primitives, and
-shared errors. Profile selection is contributed by `untaped-profile`.
+`untaped-jira` is a standalone CLI built on the `untaped` SDK, invoked as
+`untaped-jira`. It owns Jira Data Center ticket workflow: issue
+lookup/search/create/edit/comment/transition plus lightweight project, board,
+and sprint lookup helpers. The `untaped` SDK owns the binary, config loading,
+output helpers, HTTP/TLS primitives, profile selection, and shared errors.
+Profile selection is built into the SDK and works in any token position.
 
 ## Hard Rules
 
-1. Keep `AGENTS.md` and the packaged skill up to date. Architecture, command
-   behavior, settings, and major Jira workflow changes must be documented here
-   and in `src/untaped_jira/skills/untaped-jira/SKILL.md`.
-2. Expose the plugin through the `untaped.plugins` entry point. The plugin
-   object must expose `id = "jira"`, literal `untaped_api_version = 5`,
-   and `manifest()` returning an `untaped.api.PluginManifest`.
-3. Import the SDK surface from `untaped.api` only (tests may also use
-   `untaped.testing`). Never reach into core internals from `src/`.
-4. `plugin.py` must never import the CLI app. The manifest declares
-   `CliSpec(name="jira", import_path="untaped_jira.cli:app", help=...)` and
-   `untaped_jira/__init__.py` re-exports `app` lazily via a PEP 562 module
-   `__getattr__` so importing the package stays CLI-free.
-5. Use the 4-layer plugin layout: `cli -> application -> domain`, with
+1. **Keep `AGENTS.md` and the packaged skill up to date.** Architecture,
+   command behavior, settings, and major Jira workflow changes must be
+   documented here and in
+   `src/untaped_jira/skills/untaped-jira/SKILL.md`.
+2. **Expose the CLI through the SDK entry point.** The console script
+   `untaped-jira = "untaped_jira.__main__:main"` hands the Cyclopts `app`
+   and a `ToolSpec` to `untaped.api.run_tool`. The `ToolSpec` declares
+   `command="untaped-jira"`, `section="jira"`, `profile_model=JiraSettings`,
+   and the packaged `untaped-jira` skill. `untaped_jira/__init__.py`
+   re-exports `app` lazily via a PEP 562 module `__getattr__` so importing
+   the package stays CLI-free.
+3. **Import the SDK surface from `untaped.api` only** (tests may also use
+   `untaped.testing`, plus SDK internals such as `untaped.settings`/
+   `untaped.identity` when a name is not exported by `untaped.api`). Never
+   reach into core internals from `src/`.
+4. **Use the 4-layer DDD layout:** `cli -> application -> domain`, with
    `infrastructure -> domain`.
-6. Declare use-case ports in `application/ports.py`.
-7. Use absolute imports only.
-8. Cyclopts command signatures use `Annotated[..., Parameter(...)]` and
-   explicit public names. Required inputs are required positional-only
-   params (`Parameter(help=...)` before `/`); a missing value renders
-   `error: ... requires an argument` (exit 2) automatically — never an
-   optional default plus a manual help dance.
-9. stdout is data only; diagnostics and status go to stderr.
-10. Secrets stay secret. `JiraSettings.token` is a `SecretStr`.
-11. CLI commands resolve settings through bare `untaped.api.plugin_context()`.
-    Profile selection is owned by the root `--profile` option (valid in any
-    token position); commands must not declare their own `--profile`. The
+5. **Declare use-case ports in `application/ports.py`.**
+6. **Use absolute imports only.**
+7. **Every source module has a module docstring.** Re-export `__init__.py`
+   files are exempt.
+8. **Cyclopts command signatures are explicit.** Use
+   `Annotated[..., Parameter(...)]` and explicit public names. Required
+   inputs are required positional-only params (`Parameter(help=...)` before
+   `/`); a missing value renders `error: ... requires an argument` (exit 2)
+   automatically — never an optional default plus a manual help dance.
+9. **stdout is data only;** diagnostics and status go to stderr.
+10. **Secrets stay secret.** `JiraSettings.token` is a `SecretStr`.
+11. **CLI commands resolve settings through bare `untaped.api.app_context()`.**
+    Profile selection is owned by the SDK's root `--profile` option (valid in
+    any token position); commands must not declare their own `--profile`. The
     Jira HTTP client is built with `untaped.api.connected_client` (settings
     validation, bearer auth, TLS resolution) and walks `startAt`/`maxResults`
     envelopes with `untaped.api.paginate_offset`.
-12. Finish with `uv run ruff check`, `uv run ruff format`, `uv run mypy`,
-    and `uv run pytest`.
+12. **Finish with verification.** Run `uv run ruff check --fix`,
+    `uv run ruff format`, `uv run mypy`, and `uv run pytest`.
 
 ## Architecture
 
 ```text
 src/untaped_jira/
-├── __init__.py
-├── plugin.py
-├── settings.py
-├── cli/
-├── application/
-├── domain/
-└── infrastructure/
+├── __init__.py       # small root API: JiraClient, JiraSettings, lazy app
+├── __main__.py       # console-script entrypoint: run_tool(app, SPEC)
+├── settings.py       # config model for this tool's `jira` section
+├── cli/              # Cyclopts commands; composition root
+├── application/      # use cases and ports
+├── domain/           # pure models and helpers
+└── infrastructure/   # JiraClient, REST pagination
 ```
 
-The plugin manifest declares `JiraSettings` as the `jira` profile settings
-section, contributes the root `jira` command as a lazy `CliSpec`
-(`untaped_jira.cli:app` is imported only when the command is dispatched), and
-ships the packaged `untaped-jira` agent skill. Keep that static skill asset
-current with major Jira workflow changes.
+The CLI declares `JiraSettings` as its `jira` settings section, mounts the
+Cyclopts `app` as the root command, and ships the packaged `untaped-jira`
+agent skill. Keep that static skill asset current with major Jira workflow
+changes. Command code reads typed settings with
+`app_context().section("jira", JiraSettings)`, not a global aggregate
+attribute.
 
 ## Jira Target
 
@@ -77,7 +85,7 @@ Management request APIs, and admin CRUD are out of scope for V1.
 
 ## Auth Model
 
-The plugin uses personal access tokens as bearer tokens:
+The CLI uses personal access tokens as bearer tokens:
 `Authorization: Bearer <token>`.
 
 Settings live under `jira`:
@@ -91,11 +99,11 @@ profiles:
       assigned_jql: assignee = currentUser() AND resolution = Unresolved
 ```
 
-`jira.token` is redacted by `untaped config list` and can be supplied by
+`jira.token` is redacted by `untaped-jira config list` and can be supplied by
 `UNTAPED_JIRA__TOKEN`.
 
-`untaped jira issue assigned` lists the authenticated user's assigned issues
-using `jira.assigned_jql` unless `--jql` is passed. `untaped jira issue get KEY`
+`untaped-jira issue assigned` lists the authenticated user's assigned issues
+using `jira.assigned_jql` unless `--jql` is passed. `untaped-jira issue get KEY`
 is the canonical concise ticket lookup command.
 
 ## Output and piping
@@ -117,3 +125,25 @@ tagged with a namespaced `kind` hint:
 
 `kind` is an advisory hint, not a contract; downstream consumers validate only
 the fields they need.
+
+## Development Workflow
+
+```bash
+uv sync
+uv run pre-commit install
+uv run pytest
+uv run mypy
+uv run ruff check --fix
+uv run ruff format
+uv run untaped-jira --help
+```
+
+Use `pytest --no-cov` for tight local loops. Full `pytest` enforces the
+coverage gate.
+
+## See Also
+
+- [`untaped` SDK](https://github.com/alexisbeaulieu97/untaped) - CLI
+  launcher, settings registry, config-file helpers, output helpers.
+- [`untaped` configuration docs](https://github.com/alexisbeaulieu97/untaped/blob/main/docs/configuration.md)
+  - user-facing profile, config, secrets, and TLS behavior.

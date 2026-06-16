@@ -7,18 +7,19 @@ from pathlib import Path
 
 import pytest
 from untaped import get_settings
-from untaped.settings import reset_config_registry_for_tests
-from untaped.testing import register_plugin_for_tests
+from untaped.settings import register_profile_settings, reset_config_registry_for_tests
 
-from untaped_jira.plugin import plugin as jira_plugin
+from untaped_jira.settings import JiraSettings
 
 
 @pytest.fixture(autouse=True)
 def _reset_settings_cache() -> Iterator[None]:
     reset_config_registry_for_tests()
-    # Tests invoke the jira app directly, so mirror production manifest
-    # registration for plugin_context().section("jira", ...) to resolve.
-    register_plugin_for_tests(jira_plugin)
+    # Tests invoke the jira app directly, which skips run_tool's section
+    # registration, so mirror the tool's profile-settings contribution
+    # (idempotent for the same model class) for app_context().section(
+    # "jira", ...) to resolve.
+    register_profile_settings("jira", JiraSettings)
     get_settings.cache_clear()
     yield
     reset_config_registry_for_tests()

@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from untaped.api import plugin_context
+from untaped.api import app_context
 
 from untaped_jira.settings import JiraSettings
 
@@ -30,7 +30,7 @@ def open_client() -> Iterator[tuple[JiraClient, UiContext]]:
 
     from untaped_jira.infrastructure import JiraClient  # noqa: PLC0415
 
-    ctx = plugin_context()
+    ctx = app_context()
     ui = ctx.ui(strict=False)
     with JiraClient(ctx.section("jira", JiraSettings), http=ctx.http) as client:
         yield client, ui
@@ -39,4 +39,4 @@ def open_client() -> Iterator[tuple[JiraClient, UiContext]]:
 def current_jira_settings() -> JiraSettings:
     """Read active Jira settings without opening an HTTP client."""
 
-    return plugin_context().section("jira", JiraSettings)
+    return app_context().section("jira", JiraSettings)

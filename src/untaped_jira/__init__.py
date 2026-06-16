@@ -1,8 +1,8 @@
-"""untaped-jira: manage Jira Data Center tickets from untaped.
+"""untaped-jira: manage Jira Data Center tickets, built on the untaped SDK.
 
-``app`` and ``JiraClient`` are resolved lazily (PEP 562): the plugin manifest
-points core at ``untaped_jira.cli:app``, so importing this package must not
-pull in the CLI module (or the HTTP stack) until they are actually used.
+``app`` and ``JiraClient`` are resolved lazily (PEP 562) so importing this
+package never pulls in the CLI module (or the HTTP stack) until they are
+actually used — ``__main__`` hands ``app`` to ``run_tool`` only when invoked.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ __all__ = ["JiraClient", "JiraSettings", "app"]
 def __getattr__(name: str) -> object:
     """Resolve the lazy ``app`` and ``JiraClient`` exports on first access."""
     # Deferred imports are the point of this hook: they keep package import
-    # cheap so core's lazy CLI mounting never loads the command tree early.
+    # cheap so the command tree never loads until ``app`` is accessed.
     if name == "app":
         from untaped_jira.cli import app  # noqa: PLC0415
 
