@@ -1,4 +1,4 @@
-"""Application-layer protocols for the Jira plugin."""
+"""Application-layer protocols for the Jira tool."""
 
 from __future__ import annotations
 
