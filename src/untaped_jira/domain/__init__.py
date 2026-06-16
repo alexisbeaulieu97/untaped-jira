@@ -1,4 +1,4 @@
-"""Pure domain models and helpers for the Jira plugin."""
+"""Pure domain models and helpers for the Jira tool."""
 
 from untaped_jira.domain.models import (
     BoardResult,

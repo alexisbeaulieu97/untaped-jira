@@ -1,4 +1,4 @@
-"""Settings model contributed by the Jira plugin."""
+"""Settings for the Jira tool."""
 
 from __future__ import annotations
 

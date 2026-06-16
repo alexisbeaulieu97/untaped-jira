@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def open_client() -> Iterator[tuple[JiraClient, UiContext]]:
     """Build a context-managed Jira client and themed UI from active settings.
 
-    The single plugin context yields both the client and the themed
+    The single tool context yields both the client and the themed
     :class:`UiContext` so commands can report progress without resolving
     settings twice. The UI is built with ``strict=False`` so a misconfigured
     theme degrades to the default theme rather than failing an otherwise-valid
