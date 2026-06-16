@@ -43,7 +43,7 @@ Profile selection is built into the SDK and works in any token position.
    automatically — never an optional default plus a manual help dance.
 9. **stdout is data only;** diagnostics and status go to stderr.
 10. **Secrets stay secret.** `JiraSettings.token` is a `SecretStr`.
-11. **CLI commands resolve settings through bare `untaped.api.plugin_context()`.**
+11. **CLI commands resolve settings through bare `untaped.api.app_context()`.**
     Profile selection is owned by the SDK's root `--profile` option (valid in
     any token position); commands must not declare their own `--profile`. The
     Jira HTTP client is built with `untaped.api.connected_client` (settings
@@ -69,7 +69,7 @@ The CLI declares `JiraSettings` as its `jira` settings section, mounts the
 Cyclopts `app` as the root command, and ships the packaged `untaped-jira`
 agent skill. Keep that static skill asset current with major Jira workflow
 changes. Command code reads typed settings with
-`plugin_context().section("jira", JiraSettings)`, not a global aggregate
+`app_context().section("jira", JiraSettings)`, not a global aggregate
 attribute.
 
 ## Jira Target

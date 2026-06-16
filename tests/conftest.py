@@ -17,7 +17,7 @@ def _reset_settings_cache() -> Iterator[None]:
     reset_config_registry_for_tests()
     # Tests invoke the jira app directly, which skips run_tool's section
     # registration, so mirror the tool's profile-settings contribution
-    # (idempotent for the same model class) for plugin_context().section(
+    # (idempotent for the same model class) for app_context().section(
     # "jira", ...) to resolve.
     register_profile_settings("jira", JiraSettings)
     get_settings.cache_clear()
