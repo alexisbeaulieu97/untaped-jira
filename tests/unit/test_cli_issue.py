@@ -25,11 +25,13 @@ def test_me_reads_authenticated_jira_user(jira_config: Path) -> None:
 
 def test_me_honors_global_ui_collection_view_for_table_output(jira_config: Path) -> None:
     jira_config.write_text(
-        "ui:\n"
-        "  collection_view: list\n"
-        "jira:\n"
-        "  base_url: https://jira.example.com\n"
-        "  token: jira_pat\n"
+        "profiles:\n"
+        "  default:\n"
+        "    ui:\n"
+        "      collection_view: list\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         mock.get("/rest/api/2/myself").mock(
@@ -45,7 +47,13 @@ def test_me_honors_global_ui_collection_view_for_table_output(jira_config: Path)
 
 def test_me_raw_ignores_unknown_global_ui_theme(jira_config: Path) -> None:
     jira_config.write_text(
-        "ui:\n  theme: missing\njira:\n  base_url: https://jira.example.com\n  token: jira_pat\n"
+        "profiles:\n"
+        "  default:\n"
+        "    ui:\n"
+        "      theme: missing\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         mock.get("/rest/api/2/myself").mock(
@@ -158,10 +166,12 @@ def test_issue_assigned_uses_default_assigned_jql(jira_config: Path) -> None:
 
 def test_issue_assigned_uses_configured_assigned_jql(jira_config: Path) -> None:
     jira_config.write_text(
-        "jira:\n"
-        "  base_url: https://jira.example.com\n"
-        "  token: jira_pat\n"
-        "  assigned_jql: assignee = currentUser() AND project = OPS\n"
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+        "      assigned_jql: assignee = currentUser() AND project = OPS\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.post("/rest/api/2/search").mock(
@@ -192,10 +202,12 @@ def test_issue_assigned_jql_option_overrides_configured_assigned_jql(
     jira_config: Path,
 ) -> None:
     jira_config.write_text(
-        "jira:\n"
-        "  base_url: https://jira.example.com\n"
-        "  token: jira_pat\n"
-        "  assigned_jql: assignee = currentUser() AND project = OPS\n"
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+        "      assigned_jql: assignee = currentUser() AND project = OPS\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.post("/rest/api/2/search").mock(
@@ -361,7 +373,13 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
 
 def test_issue_comment_table_render_fails_when_theme_is_unknown(jira_config: Path) -> None:
     jira_config.write_text(
-        "ui:\n  theme: missing\njira:\n  base_url: https://jira.example.com\n  token: jira_pat\n"
+        "profiles:\n"
+        "  default:\n"
+        "    ui:\n"
+        "      theme: missing\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
     )
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
