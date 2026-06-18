@@ -29,6 +29,12 @@ def _reset_settings_cache() -> Iterator[None]:
 @pytest.fixture
 def jira_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     cfg = tmp_path / "config.yml"
-    cfg.write_text("jira:\n  base_url: https://jira.example.com\n  token: jira_pat\n")
+    cfg.write_text(
+        "profiles:\n"
+        "  default:\n"
+        "    jira:\n"
+        "      base_url: https://jira.example.com\n"
+        "      token: jira_pat\n"
+    )
     monkeypatch.setenv("UNTAPED_CONFIG", str(cfg))
     return cfg
