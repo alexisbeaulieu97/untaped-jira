@@ -13,6 +13,7 @@ from untaped.api import (
     FormatOption,
     create_app,
     echo,
+    emit,
     existing_file,
     parse_kv_pairs,
     render_rows,
@@ -66,7 +67,7 @@ def me_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching authenticated user…"):
             row = WhoAmI(client)().model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.user"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.user")
 
 
 @issue_app.command(name="get")
@@ -84,7 +85,7 @@ def issue_get_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching issue…"):
             row = GetIssue(client)(key).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.issue")
 
 
 @issue_app.command(name="search")
@@ -198,7 +199,7 @@ def issue_create_command(
         )
         with open_client() as (client, ui), ui.progress("Creating issue…"):
             row = CreateIssue(client)(payload).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.issue")
 
 
 @issue_app.command(name="edit")
@@ -232,7 +233,7 @@ def issue_edit_command(
         )
         with open_client() as (client, ui), ui.progress("Updating issue…"):
             row = EditIssue(client)(key, payload).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.issue")
 
 
 @issue_app.command(name="comment")
@@ -256,7 +257,7 @@ def issue_comment_command(
         resolved_body = _resolve_body(body=body, body_file=body_file)
         with open_client() as (client, ui), ui.progress("Adding comment…"):
             row = AddComment(client)(key, resolved_body).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.comment"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.comment")
 
 
 @issue_app.command(name="transitions")
@@ -306,7 +307,7 @@ def issue_transition_command(
                 transition_id=transition_id,
                 transition_name=to,
             ).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.issue"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.issue")
 
 
 @project_app.command(name="list")
@@ -348,7 +349,7 @@ def project_get_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching project…"):
             row = GetProject(client)(key).model_dump()
-        echo(render_rows([row], fmt=fmt, columns=columns, kind="jira.project"))
+        emit(row, fmt=fmt, columns=columns, kind="jira.project")
 
 
 @board_app.command(name="list")

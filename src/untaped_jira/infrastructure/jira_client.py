@@ -6,9 +6,17 @@ from collections.abc import Iterator
 from types import TracebackType
 from typing import Any
 
-from untaped.api import HttpSettings, connected_client, paginate_offset
+from untaped.api import HttpSettings, RetryPolicy, connected_client, paginate_offset
 
 from untaped_jira.settings import JiraSettings
+
+# Jira's JQL search is a POST to an idempotent ``/search`` endpoint. Opt just
+# that call into retry by widening the retryable methods to include POST — the
+# tool's mutating POSTs (create/comment/transition) don't go through
+# ``paginate_offset``, so they keep the client's default (non-retrying) policy.
+_SEARCH_RETRY = RetryPolicy(
+    idempotent_methods=frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "POST"})
+)
 
 
 class JiraClient:
@@ -52,6 +60,7 @@ class JiraClient:
             body={"jql": jql, "fields": ["summary", "status", "assignee", "updated"]},
             page_size=self._page_size,
             limit=limit,
+            retry=_SEARCH_RETRY,
         )
 
     def create_issue(self, payload: dict[str, Any]) -> dict[str, Any]:

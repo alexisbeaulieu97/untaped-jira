@@ -23,16 +23,10 @@ def test_me_reads_authenticated_jira_user(jira_config: Path) -> None:
     assert result.stdout.strip() == "alexis"
 
 
-def test_me_honors_global_ui_collection_view_for_table_output(jira_config: Path) -> None:
-    jira_config.write_text(
-        "profiles:\n"
-        "  default:\n"
-        "    ui:\n"
-        "      collection_view: list\n"
-        "    jira:\n"
-        "      base_url: https://jira.example.com\n"
-        "      token: jira_pat\n"
-    )
+def test_me_table_renders_detail_view(jira_config: Path) -> None:
+    """A single entity renders as a vertical key:value detail view under the
+    default config — not a boxed one-row table (the ``emit`` single-record
+    contract). Before the migration this default-config render was a grid."""
     with respx.mock(base_url="https://jira.example.com") as mock:
         mock.get("/rest/api/2/myself").mock(
             return_value=httpx.Response(200, json={"name": "alexis", "displayName": "Alexis"})
