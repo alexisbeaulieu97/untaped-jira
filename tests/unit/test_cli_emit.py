@@ -131,3 +131,19 @@ def test_search_retries_429_on_idempotent_post(
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "ABC-1"
     assert route.call_count == 2
+
+
+def test_create_429_is_not_retried(jira_config: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The safety asymmetry: a mutating POST (issue create) is never retried,
+    so a transient 429 surfaces immediately rather than risking a double-create."""
+    monkeypatch.setattr("untaped.http._sleep", lambda _delay: None)
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.post("/rest/api/2/issue").mock(
+            side_effect=[httpx.Response(429), httpx.Response(201, json={"key": "ABC-1"})]
+        )
+        result = CliInvoker().invoke(
+            app, ["issue", "create", "--project", "ABC", "--issue-type", "Bug", "--summary", "x"]
+        )
+
+    assert result.exit_code != 0
+    assert route.call_count == 1
