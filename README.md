@@ -112,3 +112,17 @@ uv run untaped-jira --help
 
 See [AGENTS.md](./AGENTS.md) for architecture rules and Jira-specific
 contracts.
+
+## Security
+
+Please report suspected vulnerabilities privately. See
+[SECURITY.md](./SECURITY.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for the
+local workflow, architecture rules, and Jira-specific contracts.
+
+## License
+
+MIT. See [LICENSE](./LICENSE).
