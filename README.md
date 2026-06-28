@@ -10,7 +10,7 @@ and sprint lookup helpers, alongside the shared `config`, `profile`, and
 ## Install
 
 ```bash
-uv tool install untaped-jira
+uv tool install git+https://github.com/alexisbeaulieu97/untaped-jira.git
 ```
 
 This also ships the `untaped-jira` agent skill; install it for Codex or Claude
