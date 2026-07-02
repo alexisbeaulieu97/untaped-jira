@@ -10,6 +10,8 @@ and sprint lookup helpers, alongside the shared `config`, `profile`, and
 ## Install
 
 ```bash
+uv tool install untaped-jira
+# Temporary fallback until the first PyPI release is confirmed:
 uv tool install git+https://github.com/alexisbeaulieu97/untaped-jira.git
 ```
 
