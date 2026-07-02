@@ -18,17 +18,14 @@ import yaml
 # The ONLY block that varies between tools.
 DIST_NAME = "untaped-jira"
 CONSOLE_SCRIPT = "untaped-jira"
-EXPECTED_VERSION = "0.6.2"
+EXPECTED_VERSION = "0.6.3"
 # Internal untaped-ecosystem deps, as (PEP 508 requirement, uv-source rev or None):
 #   rev = "vX.Y.Z" for a uv git source; None when the dep installs from PyPI.
 INTERNAL_DEPS: list[tuple[str, str | None]] = [
-    ("untaped>=2.4.0,<3", "v2.4.0"),
+    ("untaped>=2.4.0,<3", None),
 ]
 # Docs that must steer users to PyPI install (repo-relative paths); [] to skip the docs check.
-PYPI_INSTALL_DOCS: list[str] = [
-    "README.md",
-    "src/untaped_jira/skills/untaped-jira/SKILL.md",
-]
+PYPI_INSTALL_DOCS: list[str] = []
 # ========================================================================
 
 CORE_RELEASE_TOOL_SHA = "07116cc11d4217283ad42badea4f5d5744542f2a"

@@ -11,8 +11,6 @@ and sprint lookup helpers, alongside the shared `config`, `profile`, and
 
 ```bash
 uv tool install untaped-jira
-# Temporary fallback until the first PyPI release is confirmed:
-uv tool install git+https://github.com/alexisbeaulieu97/untaped-jira.git
 ```
 
 This also ships the `untaped-jira` agent skill; install it for Codex or Claude
