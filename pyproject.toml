@@ -1,6 +1,6 @@
 [project]
 name = "untaped-jira"
-version = "0.6.2"
+version = "0.6.3"
 description = "Jira Data Center ticket workflow CLI built on the untaped SDK."
 readme = "README.md"
 authors = [
@@ -108,6 +108,3 @@ exclude_also = [
     "raise NotImplementedError",
     "@(abc\\.)?abstractmethod",
 ]
-
-[tool.uv.sources]
-untaped = { git = "https://github.com/alexisbeaulieu97/untaped.git", rev = "v2.4.0" }

@@ -9,7 +9,7 @@ Use this skill when the user wants an agent to operate the `untaped-jira` CLI fo
 
 ## Setup
 
-- `untaped-jira` is a standalone CLI built on the untaped SDK. Install it with `uv tool install untaped-jira`. Until the first PyPI release is confirmed, use `uv tool install git+https://github.com/alexisbeaulieu97/untaped-jira.git` as a temporary fallback.
+- `untaped-jira` is a standalone CLI built on the untaped SDK. Install it with `uv tool install untaped-jira`.
 - V1 targets Jira Data Center and self-hosted Jira, not Jira Cloud REST v3.
 - Settings live under `profiles.<name>.jira`: `base_url`, `token`, `assigned_jql`, and optional defaults such as `default_board_id`.
 - Use `untaped-jira config set token --prompt` or `--stdin` for personal access tokens (a bare key addresses this tool's own section).
