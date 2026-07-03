@@ -1,8 +1,9 @@
 # AGENTS.md - `untaped-jira`
 
-Single source of truth for this standalone CLI repo. If you change
-architecture, command behavior, settings behavior, or the development
-workflow, update this file in the same commit.
+Single source of truth for Jira-specific guidance in this standalone CLI repo.
+Suite-wide conventions live in the core SDK docs:
+`untaped/docs/plugins.md` and `untaped/docs/tool-conventions.md`. This file
+keeps only Jira rules, contracts, and gotchas.
 
 ## Mission
 
@@ -30,27 +31,18 @@ Profile selection is built into the SDK and works in any token position.
    `untaped.testing`, plus SDK internals such as `untaped.settings`/
    `untaped.identity` when a name is not exported by `untaped.api`). Never
    reach into core internals from `src/`.
-4. **Use the 4-layer DDD layout:** `cli -> application -> domain`, with
-   `infrastructure -> domain`.
-5. **Declare use-case ports in `application/ports.py`.**
-6. **Use absolute imports only.**
-7. **Every source module has a module docstring.** Re-export `__init__.py`
-   files are exempt.
-8. **Cyclopts command signatures are explicit.** Use
+4. **Cyclopts command signatures are explicit.** Use
    `Annotated[..., Parameter(...)]` and explicit public names. Required
    inputs are required positional-only params (`Parameter(help=...)` before
    `/`); a missing value renders `error: ... requires an argument` (exit 2)
-   automatically — never an optional default plus a manual help dance.
-9. **stdout is data only;** diagnostics and status go to stderr.
-10. **Secrets stay secret.** `JiraSettings.token` is a `SecretStr`.
-11. **CLI commands resolve settings through bare `untaped.api.app_context()`.**
-    Profile selection is owned by the SDK's root `--profile` option (valid in
-    any token position); commands must not declare their own `--profile`. The
-    Jira HTTP client is built with `untaped.api.connected_client` (settings
-    validation, bearer auth, TLS resolution) and walks `startAt`/`maxResults`
-    envelopes with `untaped.api.paginate_offset`.
-12. **Finish with verification.** Run `uv run ruff check --fix`,
-    `uv run ruff format`, `uv run mypy`, and `uv run pytest`.
+   automatically -- never an optional default plus a manual help dance.
+5. **Secrets stay secret.** `JiraSettings.token` is a `SecretStr`.
+6. **CLI commands resolve settings through bare `untaped.api.app_context()`.**
+   Profile selection is owned by the SDK's root `--profile` option (valid in
+   any token position); commands must not declare their own `--profile`. The
+   Jira HTTP client is built with `untaped.api.connected_client` (settings
+   validation, bearer auth, TLS resolution) and passes Jira's explicit
+   `startAt`/`maxResults` parameter names to `untaped.api.paginate_offset`.
 
 ## Architecture
 
@@ -108,10 +100,8 @@ is the canonical concise ticket lookup command.
 
 ## Output and piping
 
-Every row-producing command supports `--format pipe` (core's self-describing
-NDJSON): one `{"untaped":"1","kind":...,"record":{...}}` object per line, so a
-jira command's output can be piped into another untaped command. Each record is
-tagged with a namespaced `kind` hint:
+Jira row-producing commands tag `--format pipe` records with these namespaced
+`kind` hints:
 
 | `kind` | Commands |
 | --- | --- |
@@ -122,24 +112,6 @@ tagged with a namespaced `kind` hint:
 | `jira.board` | `board list` |
 | `jira.sprint` | `sprint list` |
 | `jira.user` | `me` |
-
-`kind` is an advisory hint, not a contract; downstream consumers validate only
-the fields they need.
-
-## Development Workflow
-
-```bash
-uv sync
-uv run pre-commit install
-uv run pytest
-uv run mypy
-uv run ruff check --fix
-uv run ruff format
-uv run untaped-jira --help
-```
-
-Use `pytest --no-cov` for tight local loops. Full `pytest` enforces the
-coverage gate.
 
 ## See Also
 
