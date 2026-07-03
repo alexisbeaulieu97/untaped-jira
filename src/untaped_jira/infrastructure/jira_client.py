@@ -60,6 +60,8 @@ class JiraClient:
             body={"jql": jql, "fields": ["summary", "status", "assignee", "updated"]},
             page_size=self._page_size,
             limit=limit,
+            start_param="startAt",
+            size_param="maxResults",
             retry=_SEARCH_RETRY,
         )
 
@@ -121,6 +123,9 @@ class JiraClient:
             params=params,
             page_size=self._page_size,
             limit=limit,
+            start_param="startAt",
+            size_param="maxResults",
+            last_flag="isLast",
         )
 
     def list_sprints(
@@ -139,6 +144,9 @@ class JiraClient:
             params=params,
             page_size=self._page_size,
             limit=limit,
+            start_param="startAt",
+            size_param="maxResults",
+            last_flag="isLast",
         )
 
     def close(self) -> None:

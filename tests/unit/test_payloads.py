@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-from untaped.api import ConfigError
+from untaped.api import read_structured_file
 
-from untaped_jira.domain import build_issue_payload, parse_json_field_assignments, read_payload_file
+from untaped_jira.domain import build_issue_payload
 
 
 def test_build_issue_payload_applies_overlay_precedence(tmp_path: Path) -> None:
@@ -22,7 +21,7 @@ def test_build_issue_payload_applies_overlay_precedence(tmp_path: Path) -> None:
         "  labels:\n"
         "    - add: old\n"
     )
-    base = read_payload_file(template)
+    base = read_structured_file(template)
 
     payload = build_issue_payload(
         base=base,
@@ -45,16 +44,3 @@ def test_build_issue_payload_applies_overlay_precedence(tmp_path: Path) -> None:
         },
         "update": {"labels": [{"add": "old"}]},
     }
-
-
-def test_parse_json_field_assignments_rejects_invalid_json() -> None:
-    with pytest.raises(ConfigError, match="--json-field"):
-        parse_json_field_assignments(["customfield_10000={broken"])
-
-
-def test_read_payload_file_rejects_non_object(tmp_path: Path) -> None:
-    path = tmp_path / "bad.yml"
-    path.write_text("- not\n- an\n- object\n")
-
-    with pytest.raises(ConfigError, match="must contain an object"):
-        read_payload_file(path)

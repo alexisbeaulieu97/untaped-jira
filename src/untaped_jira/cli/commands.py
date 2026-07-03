@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -12,20 +11,19 @@ from untaped.api import (
     ConfigError,
     FormatOption,
     create_app,
-    echo,
     emit,
     existing_file,
+    parse_json_pairs,
     parse_kv_pairs,
-    render_rows,
+    read_structured_file,
     report_errors,
+    resolve_text_input,
 )
 
 from untaped_jira.cli._client import current_jira_settings, open_client
 from untaped_jira.domain import (
     JiraIssueSearchFilters,
     build_issue_payload,
-    parse_json_field_assignments,
-    read_payload_file,
 )
 
 LimitOption = Annotated[
@@ -116,11 +114,7 @@ def issue_search_command(
         )
         with open_client() as (client, ui), ui.progress("Querying Jira issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        rendered = render_rows(
-            rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues match the query."
-        )
-        if rendered:
-            echo(rendered)
+        emit(rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues match the query.")
 
 
 @issue_app.command(name="assigned")
@@ -150,11 +144,7 @@ def issue_assigned_command(
         )
         with open_client() as (client, ui), ui.progress("Querying assigned issues…"):
             rows = [issue.model_dump() for issue in SearchIssues(client)(filters, limit=limit)]
-        rendered = render_rows(
-            rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues assigned to you."
-        )
-        if rendered:
-            echo(rendered)
+        emit(rows, fmt=fmt, columns=columns, kind="jira.issue", empty="No issues assigned to you.")
 
 
 def _resolve_assigned_jql(*, jql: str | None, configured: str) -> str:
@@ -187,7 +177,7 @@ def issue_create_command(
     from untaped_jira.application import CreateIssue  # noqa: PLC0415
 
     with report_errors():
-        base = read_payload_file(template) if template is not None else {}
+        base = read_structured_file(template) if template is not None else {}
         payload = build_issue_payload(
             base=base,
             project=project or current_jira_settings().default_project,
@@ -195,7 +185,7 @@ def issue_create_command(
             summary=summary,
             description=description,
             fields=parse_kv_pairs(field, flag="--field"),
-            json_fields=parse_json_field_assignments(json_field),
+            json_fields=parse_json_pairs(json_field, flag="--json-field"),
         )
         with open_client() as (client, ui), ui.progress("Creating issue…"):
             row = CreateIssue(client)(payload).model_dump()
@@ -223,13 +213,13 @@ def issue_edit_command(
     from untaped_jira.application import EditIssue  # noqa: PLC0415
 
     with report_errors():
-        base = read_payload_file(body_file) if body_file is not None else {}
+        base = read_structured_file(body_file) if body_file is not None else {}
         payload = build_issue_payload(
             base=base,
             summary=summary,
             description=description,
             fields=parse_kv_pairs(field, flag="--field"),
-            json_fields=parse_json_field_assignments(json_field),
+            json_fields=parse_json_pairs(json_field, flag="--json-field"),
         )
         with open_client() as (client, ui), ui.progress("Updating issue…"):
             row = EditIssue(client)(key, payload).model_dump()
@@ -254,7 +244,7 @@ def issue_comment_command(
     from untaped_jira.application import AddComment  # noqa: PLC0415
 
     with report_errors():
-        resolved_body = _resolve_body(body=body, body_file=body_file)
+        resolved_body = resolve_text_input(value=body, file=body_file, what="body")
         with open_client() as (client, ui), ui.progress("Adding comment…"):
             row = AddComment(client)(key, resolved_body).model_dump()
         emit(row, fmt=fmt, columns=columns, kind="jira.comment")
@@ -275,15 +265,13 @@ def issue_transitions_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Fetching available transitions…"):
             rows = [transition.model_dump() for transition in ListTransitions(client)(key)]
-        rendered = render_rows(
+        emit(
             rows,
             fmt=fmt,
             columns=columns,
             kind="jira.transition",
             empty="No transitions available for this issue.",
         )
-        if rendered:
-            echo(rendered)
 
 
 @issue_app.command(name="transition")
@@ -323,15 +311,13 @@ def project_list_command(
     with report_errors():
         with open_client() as (client, ui), ui.progress("Listing projects…"):
             rows = [project.model_dump() for project in ListProjects(client)()]
-        rendered = render_rows(
+        emit(
             rows,
             fmt=fmt,
             columns=columns,
             kind="jira.project",
             empty="No projects are visible to you.",
         )
-        if rendered:
-            echo(rendered)
 
 
 @project_app.command(name="get")
@@ -380,11 +366,7 @@ def board_list_command(
                     limit=limit,
                 )
             ]
-        rendered = render_rows(
-            rows, fmt=fmt, columns=columns, kind="jira.board", empty="No boards match the filter."
-        )
-        if rendered:
-            echo(rendered)
+        emit(rows, fmt=fmt, columns=columns, kind="jira.board", empty="No boards match the filter.")
 
 
 @sprint_app.command(name="list")
@@ -414,40 +396,13 @@ def sprint_list_command(
                     limit=limit,
                 )
             ]
-        rendered = render_rows(
+        emit(
             rows,
             fmt=fmt,
             columns=columns,
             kind="jira.sprint",
             empty="No sprints found for this board.",
         )
-        if rendered:
-            echo(rendered)
-
-
-def _resolve_body(*, body: str | None, body_file: Path | None) -> str:
-    if body is not None and body_file is not None:
-        raise ConfigError("provide --body or --body-file, not both")
-    if body is not None:
-        return body
-    if body_file is not None:
-        try:
-            return _trim_terminal_newline(body_file.read_text())
-        except OSError as exc:
-            raise ConfigError(f"could not read {body_file}: {exc}") from exc
-    if not sys.stdin.isatty():
-        raw_body = sys.stdin.read()
-        if raw_body.strip():
-            return _trim_terminal_newline(raw_body)
-    raise ConfigError("comment body is required (pass --body, --body-file, or stdin)")
-
-
-def _trim_terminal_newline(value: str) -> str:
-    if value.endswith("\r\n"):
-        return value[:-2]
-    if value.endswith(("\n", "\r")):
-        return value[:-1]
-    return value
 
 
 app.command(issue_app, name="issue")
