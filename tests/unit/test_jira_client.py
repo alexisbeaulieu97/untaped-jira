@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -125,6 +126,34 @@ def test_search_issues_walks_start_at_pages_until_total() -> None:
     assert second_request["startAt"] == 1
 
 
+def test_client_passes_explicit_sdk3_pagination_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_paginate_offset(*_args: Any, **kwargs: Any) -> Iterator[dict[str, Any]]:
+        calls.append(kwargs)
+        return iter(())
+
+    monkeypatch.setattr(jira_client_module, "paginate_offset", fake_paginate_offset)
+
+    with JiraClient(_settings()) as client:
+        list(client.search_issues("project = ABC", limit=1))
+        list(client.list_boards(limit=1))
+        list(client.list_sprints(7, limit=1))
+
+    assert calls[0]["start_param"] == "startAt"
+    assert calls[0]["size_param"] == "maxResults"
+    assert "last_flag" not in calls[0]
+    assert calls[0]["retry"] is jira_client_module._SEARCH_RETRY
+    assert calls[1]["start_param"] == "startAt"
+    assert calls[1]["size_param"] == "maxResults"
+    assert calls[1]["last_flag"] == "isLast"
+    assert calls[2]["start_param"] == "startAt"
+    assert calls[2]["size_param"] == "maxResults"
+    assert calls[2]["last_flag"] == "isLast"
+
+
 def test_list_boards_shrinks_page_request_to_limit() -> None:
     with respx.mock(base_url="https://jira.example.com") as mock:
         route = mock.get("/rest/agile/1.0/board").mock(
@@ -138,6 +167,78 @@ def test_list_boards_shrinks_page_request_to_limit() -> None:
 
     assert rows == [{"id": 1}]
     assert route.calls[0].request.url.params["maxResults"] == "1"
+
+
+def test_list_boards_continues_when_is_last_false_on_short_page() -> None:
+    settings = JiraSettings(
+        base_url="https://jira.example.com",
+        token=SecretStr("jira_pat"),
+        page_size=3,
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.get("/rest/agile/1.0/board").mock(
+            side_effect=[
+                httpx.Response(
+                    200,
+                    json={
+                        "startAt": 0,
+                        "maxResults": 3,
+                        "isLast": False,
+                        "values": [{"id": 1}, {"id": 2}],
+                    },
+                ),
+                httpx.Response(
+                    200,
+                    json={
+                        "startAt": 2,
+                        "maxResults": 3,
+                        "isLast": True,
+                        "values": [{"id": 3}],
+                    },
+                ),
+            ]
+        )
+        with JiraClient(settings) as client:
+            rows = list(client.list_boards())
+
+    assert [row["id"] for row in rows] == [1, 2, 3]
+    assert route.calls[1].request.url.params["startAt"] == "2"
+
+
+def test_list_sprints_continues_when_is_last_false_on_short_page() -> None:
+    settings = JiraSettings(
+        base_url="https://jira.example.com",
+        token=SecretStr("jira_pat"),
+        page_size=3,
+    )
+    with respx.mock(base_url="https://jira.example.com") as mock:
+        route = mock.get("/rest/agile/1.0/board/7/sprint").mock(
+            side_effect=[
+                httpx.Response(
+                    200,
+                    json={
+                        "startAt": 0,
+                        "maxResults": 3,
+                        "isLast": False,
+                        "values": [{"id": 20}, {"id": 21}],
+                    },
+                ),
+                httpx.Response(
+                    200,
+                    json={
+                        "startAt": 2,
+                        "maxResults": 3,
+                        "isLast": True,
+                        "values": [{"id": 22}],
+                    },
+                ),
+            ]
+        )
+        with JiraClient(settings) as client:
+            rows = list(client.list_sprints(7))
+
+    assert [row["id"] for row in rows] == [20, 21, 22]
+    assert route.calls[1].request.url.params["startAt"] == "2"
 
 
 def test_agile_list_boards_uses_agile_prefix() -> None:

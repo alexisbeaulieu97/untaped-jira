@@ -316,6 +316,30 @@ def test_issue_create_merges_template_and_flags(jira_config: Path, tmp_path: Pat
     }
 
 
+def test_issue_create_invalid_json_field_is_usage_error(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+        route = mock.post("/rest/api/2/issue").mock(
+            return_value=httpx.Response(201, json={"id": "10001", "key": "ABC-1"})
+        )
+        result = CliInvoker().invoke(
+            app,
+            [
+                "issue",
+                "create",
+                "--project",
+                "ABC",
+                "--summary",
+                "Fix deploy",
+                "--json-field",
+                "customfield_10000={broken",
+            ],
+        )
+
+    assert result.exit_code == 2, result.output
+    assert "--json-field customfield_10000 contains invalid JSON" in result.stderr
+    assert len(route.calls) == 0
+
+
 def test_issue_edit_sends_body_file_and_overlays_flags(jira_config: Path, tmp_path: Path) -> None:
     body_file = tmp_path / "edit.yml"
     body_file.write_text("fields:\n  summary: old\n")
@@ -363,6 +387,18 @@ def test_issue_comment_reads_body_from_stdin(jira_config: Path) -> None:
     assert result.exit_code == 0, result.output
     assert result.stdout.strip() == "700"
     assert json.loads(route.calls[0].request.content) == {"body": "hello from stdin"}
+
+
+def test_issue_comment_missing_body_uses_sdk_error(jira_config: Path) -> None:
+    with respx.mock(base_url="https://jira.example.com", assert_all_called=False) as mock:
+        route = mock.post("/rest/api/2/issue/ABC-1/comment").mock(
+            return_value=httpx.Response(201, json={"id": "700"})
+        )
+        result = CliInvoker().invoke(app, ["issue", "comment", "ABC-1"])
+
+    assert result.exit_code != 0
+    assert "no body provided (use --body, --body-file, or pipe it on stdin)" in result.output
+    assert len(route.calls) == 0
 
 
 def test_issue_comment_table_render_fails_when_theme_is_unknown(jira_config: Path) -> None:
